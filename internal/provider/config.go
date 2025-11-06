@@ -47,8 +47,12 @@ func NewProviderConfig(schemaVersion, baseURL, errorTemplate string) (*ProviderC
 	
 	// Validate base URL if provided
 	if baseURL != "" {
-		if _, err := url.Parse(baseURL); err != nil {
-			return nil, fmt.Errorf("invalid base URL: %v", err)
+		parsedURL, err := url.Parse(baseURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid base_url: %v", err)
+		}
+		if parsedURL.Scheme == "" || parsedURL.Host == "" {
+			return nil, fmt.Errorf("invalid base_url: must be a valid URL with scheme and host")
 		}
 	}
 	

@@ -142,7 +142,7 @@ For publishing it uses Gitlab Actions.
 
 Environment requirements:
 
-- |go|_ 1.21+ (to build the provider plugin)
+- |go|_ 1.24+ (to build the provider plugin)
 
 Running tests:
 
