@@ -37,7 +37,7 @@ On |terraform|_ versions 0.13+ use:
     required_providers {
       jsonschema = {
         source  = "iilei/jsonschema"
-        version = "~> 0.3.0"
+        version = "~> 0.3.1"
       }
     }
   }
