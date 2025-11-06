@@ -2,6 +2,10 @@
 terraform-provider-jsonschema
 =============================
 
+.. image:: https://codecov.io/github/iilei/terraform-provider-jsonschema/branch/master/graph/badge.svg
+    :target: https://codecov.io/github/iilei/terraform-provider-jsonschema
+    :alt: Coverage Status
+
 .. contents::
     :local:
     :depth: 2
