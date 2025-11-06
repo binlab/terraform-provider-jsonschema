@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
@@ -45,16 +44,9 @@ func NewProviderConfig(schemaVersion, baseURL, errorTemplate string) (*ProviderC
 		config.DefaultDraft = draft
 	}
 	
-	// Validate base URL if provided
-	if baseURL != "" {
-		parsedURL, err := url.Parse(baseURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid base_url: %v", err)
-		}
-		if parsedURL.Scheme == "" || parsedURL.Host == "" {
-			return nil, fmt.Errorf("invalid base_url: must be a valid URL with scheme and host")
-		}
-	}
+	// Note: base_url validation is intentionally omitted here
+	// The jsonschema library will handle URL validation and path resolution
+	// This allows maximum flexibility for users (HTTP URLs, file:// URLs, relative paths, etc.)
 	
 	return config, nil
 }

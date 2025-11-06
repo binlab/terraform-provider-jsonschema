@@ -58,12 +58,18 @@ func TestNewProviderConfig(t *testing.T) {
 			errorContains: "unsupported JSON Schema version",
 		},
 		{
-			name:          "invalid base URL",
+			name:          "valid with base URL",
 			schemaVersion: "draft-07",
-			baseURL:       "not-a-valid-url",
+			baseURL:       "https://example.com/schemas/",
 			errorTemplate: "",
-			expectError:   true,
-			errorContains: "invalid base_url",
+			expectError:   false,
+		},
+		{
+			name:          "valid with file path",
+			schemaVersion: "draft-07",
+			baseURL:       "./schemas/",
+			errorTemplate: "",
+			expectError:   false,
 		},
 		{
 			name:          "default empty values",
