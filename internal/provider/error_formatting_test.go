@@ -194,3 +194,86 @@ func TestNilErrorHandling(t *testing.T) {
 		t.Errorf("expected error message to contain 'error', got: %v", result)
 	}
 }
+
+func TestGetCommonTemplate(t *testing.T) {
+	tests := []struct {
+		name       string
+		templateName string
+		expectFound bool
+		expectedTemplate string
+	}{
+		{
+			name:         "simple template",
+			templateName: "simple",
+			expectFound:  true,
+			expectedTemplate: "Validation failed: {error}",
+		},
+		{
+			name:         "detailed template",
+			templateName: "detailed",
+			expectFound:  true,
+			expectedTemplate: "JSON Schema validation failed:\n  Error: {error}\n  Schema: {schema}\n  Path: {path}",
+		},
+		{
+			name:         "compact template",
+			templateName: "compact",
+			expectFound:  true,
+			expectedTemplate: "[{schema}] {error} at {path}",
+		},
+		{
+			name:         "ci template",
+			templateName: "ci",
+			expectFound:  true,
+			expectedTemplate: "::error file={schema},line=1::{error}",
+		},
+		{
+			name:         "json template",
+			templateName: "json",
+			expectFound:  true,
+			expectedTemplate: `{"error": "{error}", "schema": "{schema}", "path": "{path}"}`,
+		},
+		{
+			name:         "non-existent template",
+			templateName: "nonexistent",
+			expectFound:  false,
+			expectedTemplate: "",
+		},
+		{
+			name:         "empty template name",
+			templateName: "",
+			expectFound:  false,
+			expectedTemplate: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			template, found := GetCommonTemplate(tt.templateName)
+			
+			if found != tt.expectFound {
+				t.Errorf("GetCommonTemplate() found = %v, expectFound = %v", found, tt.expectFound)
+			}
+			
+			if found && template != tt.expectedTemplate {
+				t.Errorf("GetCommonTemplate() template = %v, expectedTemplate = %v", template, tt.expectedTemplate)
+			}
+		})
+	}
+}
+
+func TestCommonErrorTemplatesExist(t *testing.T) {
+	// Test that all expected common templates exist
+	expectedTemplates := []string{"simple", "detailed", "compact", "ci", "json"}
+	
+	for _, templateName := range expectedTemplates {
+		t.Run("template_"+templateName, func(t *testing.T) {
+			template, found := GetCommonTemplate(templateName)
+			if !found {
+				t.Errorf("Expected common template '%s' not found", templateName)
+			}
+			if template == "" {
+				t.Errorf("Common template '%s' is empty", templateName)
+			}
+		})
+	}
+}
