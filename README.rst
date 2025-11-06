@@ -10,7 +10,15 @@ terraform-provider-jsonschema
 Abstract
 ========
 
-A |terraform|_ provider for validating json files using |json-schema|_.
+A |terraform|_ provider for validating JSON and JSON5 documents using |json-schema|_ specifications.
+
+Features
+========
+
+- **JSON5 Support**: Parse and validate both JSON and JSON5 format documents and schemas
+- **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
+- **Flexible Reference Resolution**: Configurable base URLs for resolving ``$ref`` URIs
+- **Robust Validation**: Powered by ``santhosh-tekuri/jsonschema/v5`` for comprehensive validation
 
 Installation
 ============
@@ -22,8 +30,8 @@ On |terraform|_ versions 0.13+ use:
   terraform {
     required_providers {
       jsonschema = {
-        source = "JeffAshton/jsonschema"
-        version = "0.1.0"
+        source  = "iilei/jsonschema"
+        version = "~> 0.3.0"
       }
     }
   }
@@ -35,21 +43,84 @@ Usage
 
 See |user-docs|_ for details.
 
-Example:
+Provider Configuration
+======================
 
-.. code-block::
+.. code-block:: terraform
 
-  #: Validate values file
-  data "jsonschema_validator" "values" {
-    document = file("/path/to/document.json")
-    schema = file("/path/to/schema.json")
+  provider "jsonschema" {
+    # Default JSON Schema version (optional)
+    # Supported: "draft-04", "draft-06", "draft-07", "draft/2019-09", "draft/2020-12"
+    schema_version = "draft/2020-12"  # Default
+    
+    # Base URL for resolving $ref URIs (optional)
+    base_url = "https://example.com/schemas/"
   }
 
-  #: Install a helm release with the validated json
-  resource "helm_release" "service_overview" {
-    values = [
-      data.jsonschema_validator.values.validated,
-    ]
+Basic Example
+=============
+
+.. code-block:: terraform
+
+  # Configure the provider
+  provider "jsonschema" {
+    schema_version = "draft/2020-12"
+  }
+
+  # Validate a JSON document
+  data "jsonschema_validator" "config" {
+    document = file("${path.module}/config.json")
+    schema   = "${path.module}/config.schema.json"
+  }
+
+  # Use the validated document
+  resource "helm_release" "app" {
+    name   = "my-app"
+    values = [data.jsonschema_validator.config.validated]
+  }
+
+JSON5 Support Example
+====================
+
+.. code-block:: terraform
+
+  # Validate a JSON5 document with JSON5 schema
+  data "jsonschema_validator" "json5_config" {
+    document = <<-EOT
+      {
+        // JSON5 comments supported
+        "name": "my-service",
+        "ports": [8080, 8081,], // Trailing commas allowed
+        "features": {
+          enabled: true,  // Unquoted keys supported
+        }
+      }
+    EOT
+    schema = "${path.module}/service.schema.json5"
+  }
+
+Advanced Configuration
+=====================
+
+.. code-block:: terraform
+
+  # Override schema version per validation
+  data "jsonschema_validator" "legacy_config" {
+    document       = file("legacy-config.json")
+    schema         = "legacy.schema.json"
+    schema_version = "draft-04"  # Override provider default
+  }
+
+  # Remote schema with per-resource base URL
+  data "jsonschema_validator" "remote_validation" {
+    document = file("data.json")
+    schema   = "api/v1/schema.json"
+    base_url = "https://schemas.example.com/"  # Base URL for this validation
+  }
+
+  # Or use provider-level base URL as fallback
+  provider "jsonschema" {
+    base_url = "https://default-schemas.example.com/"
   }
 
 Development
@@ -62,13 +133,13 @@ For publishing it uses Gitlab Actions.
 
 Environment requirements:
 
-- |go|_ 1.15 (to build the provider plugin)
+- |go|_ 1.21+ (to build the provider plugin)
 
 Running tests:
 
 .. code-block:: bash
 
-  make testacc
+  TF_ACC=1 go test ./internal/provider -v -timeout 5m
 
 
 .. |terraform| replace:: Terraform
@@ -77,8 +148,8 @@ Running tests:
 .. |terraform-install-plugin| replace:: install a terraform plugin
 .. _terraform-install-plugin: https://www.terraform.io/docs/plugins/basics.html#installing-a-plugin
 
-.. |user-docs| replace:: User Documentation
-.. _user-docs: https://registry.terraform.io/providers/JeffAshton/jsonschema/latest/docs
+.. |user-docs| replace:: User Documentation  
+.. _user-docs: https://registry.terraform.io/providers/iilei/jsonschema/latest/docs
 
 .. |json-schema| replace:: json-schema
 .. _json-schema: https://json-schema.org/
