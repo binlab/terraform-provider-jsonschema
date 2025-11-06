@@ -19,6 +19,9 @@ provider "jsonschema" {
   
   # Base URL for resolving $ref URIs (optional)
   base_url = "https://example.com/schemas/"
+  
+  # Default error message template (optional)
+  error_message_template = "JSON Schema validation failed: {error} in {schema}"
 }
 ```
 
@@ -26,6 +29,7 @@ provider "jsonschema" {
 
 - `schema_version` (Optional) - Default JSON Schema version to use when not specified in the schema document. Supported values: `"draft-04"`, `"draft-06"`, `"draft-07"`, `"draft/2019-09"`, `"draft/2020-12"`. Defaults to `"draft/2020-12"`.
 - `base_url` (Optional) - Default base URL for resolving relative `$ref` URIs in schemas. This serves as a fallback when the data source doesn't specify its own `base_url`.
+- `error_message_template` (Optional) - Default error message template for validation failures. Can be overridden per data source. Available variables: `{{.Error}}`, `{{.Schema}}`, `{{.Document}}`, `{{.Path}}` (Go template syntax) or `{error}`, `{schema}`, `{document}`, `{path}` (simple syntax).
 
 ## Basic Example
 
@@ -99,5 +103,48 @@ data "jsonschema_validator" "internal_validation" {
 # Provider-level base URL as fallback (optional)
 provider "jsonschema" {
   base_url = "https://default-schemas.example.com/"  # Used when data source base_url not specified
+}
+```
+
+## Error Message Templating
+
+Customize validation error messages using templates:
+
+```hcl-terraform
+# Simple string replacement
+data "jsonschema_validator" "config" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  error_message_template = "Configuration validation failed: {error} (Schema: {schema})"
+}
+
+# Go template syntax with more control
+data "jsonschema_validator" "api_config" {
+  document = file("api-config.json")
+  schema   = "api.schema.json"
+  error_message_template = <<-EOT
+    JSON Schema Validation Error:
+    - Error: {{.Error}}
+    - Schema: {{.Schema}}
+    - JSON Path: {{.Path}}
+    - Document: {{.Document}}
+  EOT
+}
+
+# CI/CD friendly format
+provider "jsonschema" {
+  error_message_template = "::error file={schema},line=1::{error}"
+}
+
+# JSON structured output
+data "jsonschema_validator" "structured_errors" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  error_message_template = jsonencode({
+    "error": "{error}",
+    "schema": "{schema}", 
+    "path": "{path}",
+    "timestamp": "{{now}}"
+  })
 }
 ```

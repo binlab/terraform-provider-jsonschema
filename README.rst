@@ -18,7 +18,9 @@ Features
 - **JSON5 Support**: Parse and validate both JSON and JSON5 format documents and schemas
 - **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
 - **Flexible Reference Resolution**: Configurable base URLs for resolving ``$ref`` URIs
+- **Custom Error Templates**: Customize validation error messages with templating support
 - **Robust Validation**: Powered by ``santhosh-tekuri/jsonschema/v5`` for comprehensive validation
+- **Deterministic Output**: Consistent JSON marshaling for stable resource IDs
 
 Installation
 ============
@@ -55,6 +57,9 @@ Provider Configuration
     
     # Base URL for resolving $ref URIs (optional)
     base_url = "https://example.com/schemas/"
+    
+    # Default error message template (optional)
+    error_message_template = "Validation failed: {error} in {schema}"
   }
 
 Basic Example

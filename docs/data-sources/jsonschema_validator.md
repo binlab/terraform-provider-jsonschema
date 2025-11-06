@@ -52,12 +52,43 @@ data "jsonschema_validator" "remote_validation" {
 }
 ```
 
+### Custom Error Message Templates
+
+```hcl-terraform
+# Simple error template
+data "jsonschema_validator" "simple_errors" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  error_message_template = "Config validation failed: {error}"
+}
+
+# Detailed error information
+data "jsonschema_validator" "detailed_errors" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  error_message_template = <<-EOT
+    Validation Error:
+    - Message: {{.Error}}
+    - Schema File: {{.Schema}}
+    - JSON Path: {{.Path}}
+  EOT
+}
+
+# CI/CD integration format
+data "jsonschema_validator" "ci_errors" {
+  document = file("deployment.json")
+  schema   = "deployment.schema.json"
+  error_message_template = "::error file={{.Schema}},line=1::{{.Error}}"
+}
+```
+
 ## Argument Reference
 
 * `document` (Required) - Content of a JSON or JSON5 document to validate. Supports both inline content and `file()` function.
 * `schema` (Required) - Path to a JSON or JSON5 schema file. Can be a local file path or a URL (when `base_url` is configured).
 * `schema_version` (Optional) - JSON Schema version override for this specific validation. Overrides the provider's default `schema_version`. Supported values: `"draft-04"`, `"draft-06"`, `"draft-07"`, `"draft/2019-09"`, `"draft/2020-12"`.
 * `base_url` (Optional) - Base URL for resolving relative `$ref` URIs in schemas for this specific validation. Overrides the provider's default `base_url`.
+* `error_message_template` (Optional) - Template for formatting validation error messages. Overrides the provider's default template. Available variables: `{{.Error}}`, `{{.Schema}}`, `{{.Document}}`, `{{.Path}}` (Go template syntax) or `{error}`, `{schema}`, `{document}`, `{path}` (simple syntax).
 
 ## Attributes Reference
 

@@ -39,6 +39,11 @@ func dataSourceJsonschemaValidator() *schema.Resource {
 				Optional:    true,
 				Description: "Base URL for resolving relative `$ref` URIs for this validation (overrides provider default)",
 			},
+			"error_message_template": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Template for formatting validation error messages. Available variables: {{.Error}}, {{.Schema}}, {{.Document}}, {{.Path}}",
+			},
 			"validated": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -58,6 +63,12 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	schemaPath := d.Get("schema").(string)
 	schemaVersionOverride := d.Get("schema_version").(string)
 	baseURLOverride := d.Get("base_url").(string)
+	errorMessageTemplate := d.Get("error_message_template").(string)
+	
+	// Use provider default if no template specified
+	if errorMessageTemplate == "" {
+		errorMessageTemplate = config.DefaultErrorTemplate
+	}
 
 	// Parse document (supports JSON5)
 	documentData, err := ParseJSON5String(document)
@@ -130,7 +141,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 
 	// Validate the document
 	if err := compiledSchema.Validate(documentData); err != nil {
-		return fmt.Errorf("document validation failed: %w", err)
+		return FormatValidationError(err, schemaPath, document, errorMessageTemplate)
 	}
 
 	// Convert document to deterministic canonical JSON
