@@ -20,6 +20,10 @@ type ErrorContext struct {
 
 // FormatValidationError formats a validation error using the provided template
 func FormatValidationError(err error, schemaPath, document, errorTemplate string) error {
+	if err == nil {
+		return nil // Handle nil error gracefully
+	}
+
 	if errorTemplate == "" {
 		// No template provided, use sensible default
 		errorTemplate = "JSON Schema validation failed: {error}"

@@ -99,3 +99,98 @@ func TestErrorFormattingEdgeCases(t *testing.T) {
 		t.Errorf("Expected: %s\nGot: %s", expected, result3.Error())
 	}
 }
+
+// MockValidationError is a simple error for testing - not implementing ValidationError interface
+// since the actual jsonschema.ValidationError is used in production
+type MockValidationError struct {
+	message string
+	path    string
+}
+
+func (m *MockValidationError) Error() string {
+	return m.message
+}
+
+func TestFormatValidationErrorComplexScenarios(t *testing.T) {
+	tests := []struct {
+		name             string
+		err              error
+		schemaPath       string
+		document         string
+		template         string
+		expectedContains []string
+	}{
+		{
+			name:       "Go template with multiple variables",
+			err:        &MockValidationError{message: "validation failed", path: "/name"},
+			schemaPath: "/path/to/schema.json",
+			document:   `{"name": 123}`,
+			template:   "Error: {{.Error}} | Schema: {{.Schema}}",
+			expectedContains: []string{"Error:", "validation failed", "Schema:", "/path/to/schema.json"},
+		},
+		{
+			name:       "Simple template with all variables",
+			err:        &MockValidationError{message: "type error", path: "/age"},
+			schemaPath: "user.schema.json",
+			document:   `{"age": "twenty"}`,
+			template:   "Field failed: {error} in schema {schema} for document {document}",
+			expectedContains: []string{"Field failed:", "type error", "schema user.schema.json", "document"},
+		},
+		{
+			name:       "Template with missing variables",
+			err:        &MockValidationError{message: "missing field"},
+			schemaPath: "schema.json",
+			document:   "{}",
+			template:   "Error: {error} | Unknown: {unknown_var}",
+			expectedContains: []string{"Error:", "missing field", "{unknown_var}"},
+		},
+		{
+			name:       "Invalid Go template syntax",
+			err:        &MockValidationError{message: "test error"},
+			schemaPath: "test.json",
+			document:   "{}",
+			template:   "{{.Error", // Missing closing braces
+			expectedContains: []string{"test error"}, // Should fall back to simple replacement
+		},
+		{
+			name:       "Non-validation error",
+			err:        fmt.Errorf("generic error"),
+			schemaPath: "test.json",
+			document:   "{}",
+			template:   "Custom: {error}",
+			expectedContains: []string{"Custom:", "generic error"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatValidationError(tt.err, tt.schemaPath, tt.document, tt.template)
+
+			if result == nil {
+				t.Errorf("expected error but got nil")
+				return
+			}
+
+			errorMessage := result.Error()
+			for _, expected := range tt.expectedContains {
+				if !strings.Contains(errorMessage, expected) {
+					t.Errorf("expected error message to contain %q, got: %s", expected, errorMessage)
+				}
+			}
+		})
+	}
+}
+
+func TestNilErrorHandling(t *testing.T) {
+	// Test that passing nil error doesn't crash - should return nil or handle gracefully
+	result := FormatValidationError(nil, "test.json", "{}", "Error: {error}")
+	// The function should handle nil gracefully, either by returning nil or a reasonable error
+	if result == nil {
+		// This is acceptable - function handles nil by returning nil
+		return
+	}
+	// If not nil, it should be a reasonable error message
+	if !strings.Contains(result.Error(), "error") {
+		t.Errorf("expected error message to contain 'error', got: %v", result)
+	}
+}
