@@ -53,7 +53,7 @@ func TestErrorMessageTemplating(t *testing.T) {
 
 func TestProviderConfigDefaults(t *testing.T) {
 	// Test that NewProviderConfig sets sensible defaults
-	config, err := NewProviderConfig("", "")
+	config, err := NewProviderConfig("", "", false)
 	if err != nil {
 		t.Fatalf("Failed to create provider config: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestProviderConfigDefaults(t *testing.T) {
 
 	// Test that custom template is preserved
 	customTemplate := "Custom error: {error}"
-	config2, err := NewProviderConfig("", customTemplate)
+	config2, err := NewProviderConfig("", customTemplate, false)
 	if err != nil {
 		t.Fatalf("Failed to create provider config with custom template: %v", err)
 	}

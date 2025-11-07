@@ -82,12 +82,31 @@ data "jsonschema_validator" "ci_errors" {
 }
 ```
 
+### Enhanced Error Output
+
+```hcl-terraform
+# Detailed errors (enabled by default)
+data "jsonschema_validator" "api_config" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  # detailed_errors = true  # Default behavior
+}
+
+# Disable detailed errors for simple output
+data "jsonschema_validator" "simple_validation" {
+  document        = file("config.json")
+  schema          = "config.schema.json"
+  detailed_errors = false  # Simple error messages
+}
+```
+
 ## Argument Reference
 
-* `document` (Required) - Content of a JSON or JSON5 document to validate. Supports both inline content and `file()` function.
-* `schema` (Required) - Path to a JSON or JSON5 schema file. Must be a local file path relative to the Terraform configuration directory.
-* `schema_version` (Optional) - JSON Schema version override for this specific validation. Overrides the provider's default `schema_version`. Supported values: `"draft-04"`, `"draft-06"`, `"draft-07"`, `"draft/2019-09"`, `"draft/2020-12"`.
-* `error_message_template` (Optional) - Template for formatting validation error messages. Overrides the provider's default template. Available variables: `{{.Error}}`, `{{.Schema}}`, `{{.Document}}`, `{{.Path}}` (Go template syntax) or `{error}`, `{schema}`, `{document}`, `{path}` (simple syntax).
+* `document` (Required) - JSON or JSON5 document content to validate.
+* `schema` (Required) - Path to JSON Schema file.
+* `schema_version` (Optional) - Schema version override (`"draft-04"` to `"draft/2020-12"`).
+* `detailed_errors` (Optional) - Enhanced error output. Defaults to provider setting.
+* `error_message_template` (Optional) - Custom error template. Variables: `{error}`, `{schema}`, `{path}`, `{document}`, `{details}`, `{basic_output}`, `{detailed_output}`.
 
 ## Attributes Reference
 
@@ -113,8 +132,41 @@ Both `document` content and schema files support JSON5 syntax:
 
 ## Error Handling
 
-Validation failures provide detailed error messages including:
-- The specific validation rule that failed
-- The location in the document where validation failed
-- Expected vs. actual values
-- JSON Schema path references
+### Basic Error Format (detailed_errors = false)
+
+Provides simplified error messages:
+- Concise validation failure summary
+- Schema reference location
+- Easy-to-read format for quick troubleshooting
+
+### Detailed Error Format (detailed_errors = true)
+
+Provides comprehensive error information:
+- Specific validation rule that failed
+- Exact location in the document where validation failed
+- Expected vs. actual values with context
+- JSON Schema path references with full details
+- Structured JSON output for machine processing
+
+### Template Variables for Error Messages
+
+When `detailed_errors = false` (default):
+- `{error}` - Simplified error message
+- `{schema}` - Schema file path
+- `{document}` - Document content (truncated)
+- `{path}` - JSON path where error occurred
+
+When `detailed_errors = true`:
+- `{error}` - Detailed error message with full context
+- `{details}` - Human-readable verbose error breakdown
+- `{basic_output}` - Flat JSON list of all validation errors
+- `{detailed_output}` - Hierarchical JSON structure of validation errors
+- All basic variables above are also available
+
+### Structured Output Format
+
+The structured JSON outputs (`basic_output` and `detailed_output`) are useful for:
+- Automated error processing in CI/CD pipelines
+- Integration with error monitoring systems
+- Building custom error reporting tools
+- Programmatic analysis of validation failures

@@ -23,6 +23,8 @@ Features
 - **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
 - **Automatic Reference Resolution**: Resolves ``$ref`` URIs relative to schema file location
 - **Custom Error Templates**: Customize validation error messages with templating support
+- **Detailed Error Output**: Enhanced error reporting with structured JSON output for debugging
+- **Flexible Error Control**: Configure error detail level at provider and resource level
 - **Robust Validation**: Powered by ``santhosh-tekuri/jsonschema/v5`` for comprehensive validation
 - **Deterministic Output**: Consistent JSON marshaling for stable resource IDs
 
@@ -55,12 +57,9 @@ Provider Configuration
 .. code-block:: terraform
 
   provider "jsonschema" {
-    # Default JSON Schema version (optional)
-    # Supported: "draft-04", "draft-06", "draft-07", "draft/2019-09", "draft/2020-12"
-    schema_version = "draft/2020-12"  # Default
-    
-    # Default error message template (optional)
-    error_message_template = "Validation failed: {error} in {schema}"
+    schema_version = "draft/2020-12"  # Optional: JSON Schema version
+    detailed_errors = true            # Optional: Enhanced error output (default)
+    error_message_template = "Validation failed: {error}"  # Optional: Custom template
   }
 
 Basic Example
@@ -124,6 +123,13 @@ Advanced Configuration
     error_message_template = "Configuration error in {schema}: {error}"
   }
 
+  # Enable detailed error output for specific validation
+  data "jsonschema_validator" "debug_validation" {
+    document        = file("complex-config.json")
+    schema          = "complex.schema.json"
+    detailed_errors = true  # Override provider default for detailed debugging
+  }
+
   # Schema references are resolved relative to schema file location
   # For example, if schema is at "/path/to/schemas/main.schema.json"
   # then "$ref": "./types.json" resolves to "/path/to/schemas/types.json"
@@ -131,6 +137,100 @@ Advanced Configuration
     document = file("document.json")
     schema   = "${path.module}/schemas/main.schema.json"  # Contains $ref references
   }
+
+Detailed Error Output
+====================
+
+The provider supports enhanced error reporting with structured output for better debugging and automated error handling.
+
+Basic vs Detailed Errors
+------------------------
+
+.. code-block:: terraform
+
+  # Basic error format (default)
+  data "jsonschema_validator" "basic" {
+    detailed_errors = false
+    document = jsonencode({"name": "Jo"})  # Too short
+    schema = jsonencode({
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "minLength": 3}
+      }
+    })
+  }
+  # Error: "doesn't validate with schema"
+
+  # Detailed error format 
+  data "jsonschema_validator" "detailed" {
+    detailed_errors = true
+    document = jsonencode({"name": "Jo"})  # Too short
+    schema = jsonencode({
+      "type": "object", 
+      "properties": {
+        "name": {"type": "string", "minLength": 3}
+      }
+    })
+  }
+  # Error: "jsonschema: '/name' does not validate with schema#/properties/name/minLength: length must be >= 3, but got 2"
+
+Structured Error Output
+----------------------
+
+When ``detailed_errors = true``, additional template variables become available:
+
+.. code-block:: terraform
+
+  provider "jsonschema" {
+    detailed_errors = true
+    error_message_template = <<-EOT
+      Validation failed: {error}
+      
+      Basic Output (JSON):
+      {basic_output}
+      
+      Detailed Output (JSON):
+      {detailed_output}
+    EOT
+  }
+
+Available Template Variables
+---------------------------
+
+- ``{error}`` - The validation error message (simple or detailed based on ``detailed_errors``)
+- ``{schema}`` - Path to the schema file
+- ``{document}`` - The document content (truncated if long)  
+- ``{path}`` - JSON path where validation failed
+- ``{details}`` - Human-readable verbose error information (when detailed_errors = true)
+- ``{basic_output}`` - Flat list of all errors in JSON format (when detailed_errors = true)
+- ``{detailed_output}`` - Hierarchical error structure in JSON format (when detailed_errors = true)
+
+Predefined Error Templates
+-------------------------
+
+The provider includes several predefined templates accessible via ``GetCommonTemplate()``:
+
+- ``simple`` - "Validation failed: {error}"
+- ``detailed`` - Multi-line format with error, schema, and path
+- ``compact`` - "[{schema}] {error} at {path}"
+- ``json`` - JSON formatted error information
+- ``verbose`` - Includes detailed human-readable error breakdown
+- ``structured_basic`` - Uses flat JSON error list
+- ``structured_full`` - Uses hierarchical JSON error structure
+
+Example with Structured Output
+------------------------------
+
+.. code-block:: terraform
+
+  # Configure provider for machine-processable errors
+  provider "jsonschema" {
+    detailed_errors = true
+    error_message_template = "structured_basic"  # Use predefined template
+  }
+  
+  # This will output JSON formatted error information suitable for
+  # processing by external tools, CI/CD systems, or error aggregators
 
 Development
 ===========

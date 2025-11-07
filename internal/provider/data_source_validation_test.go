@@ -41,7 +41,7 @@ func TestDataSourceValidationLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test config creation
-			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate)
+			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate, false)
 			if err != nil {
 				if tt.expectError {
 					return // Expected error in config creation
@@ -141,7 +141,7 @@ func TestConfigurationOverrides(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test the configuration resolution logic
-			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerErrorTemplate)
+			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerErrorTemplate, false)
 			if err != nil {
 				t.Fatalf("unexpected provider config error: %v", err)
 			}

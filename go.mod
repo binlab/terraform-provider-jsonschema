@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1
-	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/titanous/json5 v1.0.0
 )
 

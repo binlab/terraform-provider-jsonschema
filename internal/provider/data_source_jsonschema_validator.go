@@ -3,12 +3,13 @@ package provider
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 
@@ -36,7 +37,12 @@ func dataSourceJsonschemaValidator() *schema.Resource {
 			"error_message_template": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Template for formatting validation error messages. Available variables: {{.Error}}, {{.Schema}}, {{.Document}}, {{.Path}}",
+				Description: "Template for formatting validation error messages. Available variables: {{.Error}}, {{.Schema}}, {{.Document}}, {{.Path}}, {{.Details}}, {{.BasicOutput}}, {{.DetailedOutput}}",
+			},
+			"detailed_errors": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Enable detailed error output for this validation. Overrides provider default. When enabled, provides structured JSON error details.",
 			},
 			"validated": {
 				Type:        schema.TypeString,
@@ -61,6 +67,12 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	// Use provider default if no template specified
 	if errorMessageTemplate == "" {
 		errorMessageTemplate = config.DefaultErrorTemplate
+	}
+
+	// Check for resource-level detailed errors setting
+	detailedErrors := config.DetailedErrors
+	if detailedErrorsVal, ok := d.GetOk("detailed_errors"); ok {
+		detailedErrors = detailedErrorsVal.(bool)
 	}
 
 	// Parse document (supports JSON5)
@@ -89,15 +101,18 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		effectiveSchemaVersion = schemaVersionOverride
 	}
 
-	// Set the appropriate draft
+	// Set the appropriate draft using DefaultDraft method (v6 API)
 	if effectiveSchemaVersion != "" {
 		draft, err := GetDraftForVersion(effectiveSchemaVersion)
 		if err != nil {
 			return err
 		}
-		compiler.Draft = draft
+		compiler.DefaultDraft(draft)
+	} else if config.DefaultDraft != nil {
+		compiler.DefaultDraft(config.DefaultDraft)
 	} else {
-		compiler.Draft = config.DefaultDraft
+		// Fallback to Draft2020 if no draft is set
+		compiler.DefaultDraft(jsonschema.Draft2020)
 	}
 
 	// Convert schema data to deterministic JSON string
@@ -113,15 +128,24 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	}
 	schemaURL := fmt.Sprintf("file://%s/schema.json", schemaDir)
 
-	// Compile the schema using CompileString
-	compiledSchema, err := jsonschema.CompileString(schemaURL, string(schemaJSON))
+	// Add schema resource and compile (v6 API)
+	var parsedSchemaData interface{}
+	if err := json.Unmarshal([]byte(schemaJSON), &parsedSchemaData); err != nil {
+		return fmt.Errorf("failed to parse schema JSON: %w", err)
+	}
+	
+	if err := compiler.AddResource(schemaURL, parsedSchemaData); err != nil {
+		return fmt.Errorf("failed to add schema resource: %w", err)
+	}
+	
+	compiledSchema, err := compiler.Compile(schemaURL)
 	if err != nil {
 		return fmt.Errorf("failed to compile schema: %w", err)
 	}
 
 	// Validate the document
 	if err := compiledSchema.Validate(documentData); err != nil {
-		return FormatValidationError(err, schemaPath, document, errorMessageTemplate)
+		return FormatValidationError(err, schemaPath, document, errorMessageTemplate, detailedErrors)
 	}
 
 	// Convert document to deterministic canonical JSON

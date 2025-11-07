@@ -8,25 +8,25 @@ Terraform provider for validating JSON and JSON5 documents using [JSON Schema](h
 - **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
 - **Automatic Reference Resolution**: Resolves `$ref` URIs relative to schema file location
 - **Custom Error Templates**: Customize validation error messages with templating support
+- **Detailed Error Output**: Enhanced error reporting with structured JSON output for debugging
+- **Flexible Error Control**: Configure error detail level at provider and resource level
 - **Robust Validation**: Powered by `santhosh-tekuri/jsonschema/v5` for comprehensive validation
 
 ## Provider Configuration
 
 ```hcl-terraform
 provider "jsonschema" {
-  # Default JSON Schema version (optional)
-  # Supported: "draft-04", "draft-06", "draft-07", "draft/2019-09", "draft/2020-12"
-  schema_version = "draft/2020-12"  # Default value
-  
-  # Default error message template (optional)
-  error_message_template = "JSON Schema validation failed: {error} in {schema}"
+  schema_version = "draft/2020-12"  # Optional: JSON Schema version
+  detailed_errors = true            # Optional: Enhanced error output (default)
+  error_message_template = "{error}"  # Optional: Custom error template
 }
 ```
 
 ### Configuration Arguments
 
-- `schema_version` (Optional) - Default JSON Schema version to use when not specified in the schema document. Supported values: `"draft-04"`, `"draft-06"`, `"draft-07"`, `"draft/2019-09"`, `"draft/2020-12"`. Defaults to `"draft/2020-12"`.
-- `error_message_template` (Optional) - Default error message template for validation failures. Can be overridden per data source. Available variables: `{{.Error}}`, `{{.Schema}}`, `{{.Document}}`, `{{.Path}}` (Go template syntax) or `{error}`, `{schema}`, `{document}`, `{path}` (simple syntax).
+- `schema_version` (Optional) - JSON Schema draft version. Defaults to `"draft/2020-12"`.
+- `detailed_errors` (Optional) - Enhanced error reporting with structured output. Defaults to `true`.
+- `error_message_template` (Optional) - Error message template. Available variables: `{error}`, `{schema}`, `{path}`, `{document}`. When `detailed_errors=true`: `{details}`, `{basic_output}`, `{detailed_output}`.
 
 ## Basic Example
 
@@ -82,6 +82,13 @@ data "jsonschema_validator" "detailed_validation" {
   document               = file("config.json")
   schema                 = "config.schema.json"
   error_message_template = "Configuration error in {schema}: {error}"
+}
+
+# Enable detailed errors for specific validations
+data "jsonschema_validator" "debug_validation" {
+  document        = file("complex-config.json")
+  schema          = "complex.schema.json"
+  detailed_errors = true  # Override provider default for enhanced debugging
 }
 
 # Schema references are resolved relative to schema file location

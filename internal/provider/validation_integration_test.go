@@ -1,9 +1,10 @@
 package provider
 
 import (
+	"encoding/json"
 	"testing"
 	
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 // Test the actual validation schema and compiler behavior
@@ -73,8 +74,28 @@ func TestSchemaCompilationAndValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test schema compilation using the correct API
-			schema, err := jsonschema.CompileString("test-schema", tt.schema)
+			// Test schema compilation using v6 API
+			compiler := jsonschema.NewCompiler()
+			
+			// Parse the schema JSON
+			var schemaData interface{}
+			if err := json.Unmarshal([]byte(tt.schema), &schemaData); err != nil {
+				if !tt.expectErr {
+					t.Fatalf("failed to parse schema: %v", err)
+				}
+				return // Expected parsing error
+			}
+			
+			// Add resource and compile
+			schemaURL := "test-schema"
+			if err := compiler.AddResource(schemaURL, schemaData); err != nil {
+				if !tt.expectErr {
+					t.Fatalf("failed to add schema resource: %v", err)
+				}
+				return // Expected compilation error
+			}
+			
+			schema, err := compiler.Compile(schemaURL)
 			if err != nil {
 				if !tt.expectErr {
 					t.Fatalf("failed to compile schema: %v", err)
@@ -96,8 +117,295 @@ func TestSchemaCompilationAndValidation(t *testing.T) {
 			if tt.expectErr && err == nil {
 				t.Errorf("expected validation error but got none")
 			}
-			if !tt.expectErr && err != nil {
-				t.Errorf("unexpected validation error: %v", err)
+                        if !tt.expectErr && err != nil {
+                                t.Errorf("unexpected validation error: %v", err)
+                        }
+                })
+        }
+}
+
+// Test actual validation errors with custom error templates
+func TestValidationErrorTemplateIntegration(t *testing.T) {
+	tests := []struct {
+		name           string
+		schema         string
+		document       string  
+		errorTemplate  string
+		expectedError  string
+		version        string
+	}{
+		{
+			name: "simple template with validation error",
+			schema: `{
+				"type": "object",
+				"required": ["name", "age"],
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer", "minimum": 0}
+				}
+			}`,
+			document: `{"name": "John"}`, // Missing required "age"
+			errorTemplate: "Config error: {error}",
+			expectedError: "Config error: jsonschema: '' does not validate with test://schema.json#/required: missing properties: 'age'",
+			version: "draft-07",
+		},
+		{
+			name: "detailed template with all variables",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"port": {"type": "integer", "minimum": 1, "maximum": 65535}
+				}
+			}`,
+			document: `{"port": "8080"}`, // Wrong type - string instead of integer
+			errorTemplate: "Schema: {schema} | Error: {error} | Document: {document}",
+			expectedError: "Schema: test://schema.json | Error: jsonschema: '/port' does not validate with test://schema.json#/properties/port/type: expected integer, but got string | Document: {\"port\": \"8080\"}",
+			version: "draft/2020-12",
+		},
+		{
+			name: "go template syntax",
+			schema: `{
+				"type": "array",
+				"items": {"type": "string"},
+				"minItems": 2
+			}`,
+			document: `["single"]`, // Array too short
+			errorTemplate: "Validation failed in {{.Schema}}: {{.Error}}",
+			expectedError: "Validation failed in test://schema.json: jsonschema: '' does not validate with test://schema.json#/minItems: minimum 2 items required, but found 1 items",
+			version: "draft-07",
+		},
+		{
+			name: "ci/cd format template",
+			schema: `{
+				"type": "object",
+				"required": ["version"],
+				"properties": {
+					"version": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"}
+				}
+			}`,
+			document: `{"version": "invalid-version"}`, // Invalid version format
+			errorTemplate: "::error file={schema}::{error}",
+			expectedError: "::error file=test://schema.json::jsonschema: '/version' does not validate with test://schema.json#/properties/version/pattern: does not match pattern '^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$'",
+			version: "draft-06",
+		},
+		{
+			name: "type mismatch with custom message",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"enabled": {"type": "boolean"},
+					"timeout": {"type": "number", "minimum": 0}
+				}
+			}`,
+			document: `{"enabled": "yes", "timeout": -5}`, // Multiple errors
+			errorTemplate: "Configuration validation failed: {error} (check your settings)",
+			expectedError: "Configuration validation failed: jsonschema: '/enabled' does not validate with test://schema.json#/properties/enabled/type: expected boolean, but got string (check your settings)",
+			version: "draft/2019-09",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create provider config with error template
+			config, err := NewProviderConfig(tt.version, tt.errorTemplate, true) // Enable detailed errors for testing
+			if err != nil {
+				t.Fatalf("failed to create provider config: %v", err)
+			}
+
+			// Parse the document
+			documentData, err := ParseJSON5String(tt.document)
+			if err != nil {
+				t.Fatalf("failed to parse document: %v", err)
+			}
+
+			// Parse the schema  
+			schemaData, err := ParseJSON5String(tt.schema)
+			if err != nil {
+				t.Fatalf("failed to parse schema: %v", err)
+			}
+
+			// Create compiler with appropriate draft using v6 API
+			compiler := jsonschema.NewCompiler()
+			if config.DefaultDraft != nil {
+				compiler.DefaultDraft(config.DefaultDraft)
+			}
+
+			// Convert schema to JSON for compilation
+			schemaJSON, err := MarshalDeterministic(schemaData)
+			if err != nil {
+				t.Fatalf("failed to marshal schema: %v", err)
+			}
+
+			// Parse and add schema resource, then compile using v6 API
+			var parsedSchema interface{}
+			if err := json.Unmarshal([]byte(schemaJSON), &parsedSchema); err != nil {
+				t.Fatalf("failed to parse schema JSON: %v", err)
+			}
+			
+			schemaURL := "test://schema.json"
+			if err := compiler.AddResource(schemaURL, parsedSchema); err != nil {
+				t.Fatalf("failed to add schema resource: %v", err)
+			}
+			
+			compiledSchema, err := compiler.Compile(schemaURL)
+			if err != nil {
+				t.Fatalf("failed to compile schema: %v", err)
+			}
+
+			// Validate the document (this should fail)
+			validationErr := compiledSchema.Validate(documentData)
+			if validationErr == nil {
+				t.Fatalf("expected validation error but got none")
+			}
+
+			// Format the error using our error formatter
+			formattedErr := FormatValidationError(validationErr, "test://schema.json", tt.document, tt.errorTemplate)
+			if formattedErr == nil {
+				t.Fatalf("expected formatted error but got nil")
+			}
+
+			// Check that the error matches exactly what we expect
+			errorMsg := formattedErr.Error()
+			if errorMsg == "" {
+				t.Fatalf("formatted error message is empty")
+			}
+
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error message %q, got: %q", tt.expectedError, errorMsg)
+			}
+
+			// Verify the error message was actually formatted (not just the raw validation error)
+			if errorMsg == validationErr.Error() {
+				t.Errorf("error message was not formatted, got raw validation error: %s", errorMsg)
+			}
+
+			t.Logf("Validation error: %s", validationErr.Error())
+			t.Logf("Formatted error: %s", errorMsg)
+		})
+	}
+}
+
+// Test real validation with JSON5 features
+func TestJSON5ValidationIntegration(t *testing.T) {
+	tests := []struct {
+		name          string
+		schema        string
+		document      string
+		errorTemplate string
+		expectedError string
+		expectError   bool
+	}{
+		{
+			name: "valid JSON5 document and schema",
+			schema: `{
+				// Schema with comments
+				"type": "object",
+				"required": ["service", "config"],
+				"properties": {
+					service: {"type": "string"}, // Unquoted key
+					config: {
+						type: "object",
+						properties: {
+							port: {"type": "integer"},
+							enabled: {"type": "boolean"},
+						}
+					}
+				}
+			}`,
+			document: `{
+				// Service configuration
+				"service": "api-server",
+				"config": {
+					port: 8080,     // Unquoted number
+					enabled: true,  // Trailing comma allowed
+				},
+			}`,
+			expectError: false,
+		},
+		{
+			name: "JSON5 validation failure with template",
+			schema: `{
+				"type": "object",
+				"required": ["name"],
+				"properties": {
+					name: {"type": "string", "minLength": 3}
+				}
+			}`,
+			document: `{
+				// Invalid short name
+				name: "ab", // Too short (< 3 chars)
+			}`,
+			errorTemplate: "JSON5 validation error: {error}",
+			expectedError: "JSON5 validation error: jsonschema: '/name' does not validate with test://json5-schema.json#/properties/name/minLength: length must be >= 3, but got 2",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Parse JSON5 schema
+			schemaData, err := ParseJSON5String(tt.schema)
+			if err != nil {
+				t.Fatalf("failed to parse JSON5 schema: %v", err)
+			}
+
+			// Parse JSON5 document
+			documentData, err := ParseJSON5String(tt.document)
+			if err != nil {
+				t.Fatalf("failed to parse JSON5 document: %v", err)
+			}
+
+			// Compile schema using v6 API
+			schemaJSON, err := MarshalDeterministic(schemaData)
+			if err != nil {
+				t.Fatalf("failed to marshal schema: %v", err)
+			}
+
+			compiler := jsonschema.NewCompiler()
+			var parsedSchema interface{}
+			if err := json.Unmarshal([]byte(schemaJSON), &parsedSchema); err != nil {
+				t.Fatalf("failed to parse schema JSON: %v", err)
+			}
+			
+			schemaURL := "test://json5-schema.json"
+			if err := compiler.AddResource(schemaURL, parsedSchema); err != nil {
+				t.Fatalf("failed to add schema resource: %v", err)
+			}
+			
+			compiledSchema, err := compiler.Compile(schemaURL)
+			if err != nil {
+				t.Fatalf("failed to compile schema: %v", err)
+			}
+
+			// Validate
+			validationErr := compiledSchema.Validate(documentData)
+			
+			if tt.expectError {
+				if validationErr == nil {
+					t.Errorf("expected validation error but got none")
+					return
+				}
+
+				// Test error formatting if template provided
+				if tt.errorTemplate != "" && tt.expectedError != "" {
+					formattedErr := FormatValidationError(validationErr, "test://json5-schema.json", tt.document, tt.errorTemplate)
+					if formattedErr == nil {
+						t.Errorf("expected formatted error but got nil")
+					} else {
+						errorMsg := formattedErr.Error()
+						if errorMsg == "" {
+							t.Errorf("formatted error message is empty")
+						}
+						if errorMsg != tt.expectedError {
+							t.Errorf("expected error message %q, got: %q", tt.expectedError, errorMsg)
+						}
+						t.Logf("JSON5 validation error: %s", errorMsg)
+					}
+				}
+			} else {
+				if validationErr != nil {
+					t.Errorf("unexpected validation error: %v", validationErr)
+				}
 			}
 		})
 	}
@@ -144,7 +452,7 @@ func TestConfigurationResolution(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create provider config
-			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerErrorTemplate)
+			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerErrorTemplate, false)
 			if err != nil {
 				t.Fatalf("failed to create provider config: %v", err)
 			}
@@ -230,7 +538,26 @@ func TestValidationEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schema, err := jsonschema.CompileString("test-schema", tt.schema)
+			// Compile schema using v6 API
+			compiler := jsonschema.NewCompiler()
+			
+			var schemaData interface{}
+			if err := json.Unmarshal([]byte(tt.schema), &schemaData); err != nil {
+				if !tt.expectErr {
+					t.Fatalf("failed to parse schema: %v", err)
+				}
+				return
+			}
+			
+			schemaURL := "test-schema"
+			if err := compiler.AddResource(schemaURL, schemaData); err != nil {
+				if !tt.expectErr {
+					t.Fatalf("failed to add schema resource: %v", err)
+				}
+				return
+			}
+			
+			schema, err := compiler.Compile(schemaURL)
 			if err != nil {
 				if !tt.expectErr {
 					t.Fatalf("failed to compile schema: %v", err)

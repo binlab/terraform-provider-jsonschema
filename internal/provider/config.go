@@ -3,7 +3,7 @@ package provider
 import (
 	"fmt"
 
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 // ProviderConfig holds the provider-level configuration
@@ -14,12 +14,15 @@ type ProviderConfig struct {
 	// DefaultErrorTemplate is the default error message template
 	DefaultErrorTemplate string
 	
+	// DetailedErrors enables detailed structured error output
+	DetailedErrors bool
+	
 	// DefaultDraft is the default draft to use
 	DefaultDraft *jsonschema.Draft
 }
 
 // NewProviderConfig creates a new provider configuration with defaults
-func NewProviderConfig(schemaVersion, errorTemplate string) (*ProviderConfig, error) {
+func NewProviderConfig(schemaVersion, errorTemplate string, detailedErrors bool) (*ProviderConfig, error) {
 	// Set sensible default for error template if empty
 	if errorTemplate == "" {
 		errorTemplate = "JSON Schema validation failed: {error}"
@@ -28,6 +31,7 @@ func NewProviderConfig(schemaVersion, errorTemplate string) (*ProviderConfig, er
 	config := &ProviderConfig{
 		DefaultSchemaVersion: schemaVersion,
 		DefaultErrorTemplate: errorTemplate,
+		DetailedErrors:       detailedErrors,
 		DefaultDraft:         jsonschema.Draft2020, // Default to latest draft
 	}
 	

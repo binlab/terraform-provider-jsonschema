@@ -52,7 +52,7 @@ func TestProviderConfigure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test the config creation logic directly (since testing the actual
 			// providerConfigure function would require complex mocking)
-			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate)
+			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate, false)
 
 			if tt.expectError {
 				if err == nil {

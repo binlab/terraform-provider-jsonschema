@@ -60,7 +60,7 @@ func TestNewProviderConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate)
+			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate, false)
 
 			if tt.expectError {
 				if err == nil {
