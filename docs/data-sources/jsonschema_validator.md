@@ -1,6 +1,6 @@
 # jsonschema_validator Data Source
 
-The `jsonschema_validator` data source validates JSON or JSON5 documents using [JSON Schema](https://json-schema.org/) specifications.
+The `jsonschema_validator` data source validates JSON or JSON5 documents using [JSON Schema](https://json-schema.org/) specifications with enhanced error templating capabilities.
 
 ## Example Usage
 
@@ -55,58 +55,69 @@ data "jsonschema_validator" "with_refs" {
 ### Custom Error Message Templates
 
 ```hcl-terraform
-# Simple error template
-data "jsonschema_validator" "simple_errors" {
+# Default full message
+data "jsonschema_validator" "default_errors" {
   document = file("config.json")
   schema   = "config.schema.json"
-  error_message_template = "Config validation failed: {error}"
+  error_message_template = "{{.FullMessage}}"
 }
 
-# Detailed error information
-data "jsonschema_validator" "detailed_errors" {
+# Individual error iteration
+data "jsonschema_validator" "individual_errors" {
   document = file("config.json")
   schema   = "config.schema.json"
-  error_message_template = <<-EOT
-    Validation Error:
-    - Message: {{.Error}}
-    - Schema File: {{.Schema}}
-    - JSON Path: {{.Path}}
-  EOT
+  error_message_template = "{{range .Errors}}{{.Path}}: {{.Message}}\n{{end}}"
+}
+
+# Custom format with error count
+data "jsonschema_validator" "counted_errors" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  error_message_template = "Found {{.ErrorCount}} errors:\n{{range .Errors}}• {{.Path}}: {{.Message}}\n{{end}}"
 }
 
 # CI/CD integration format
 data "jsonschema_validator" "ci_errors" {
   document = file("deployment.json")
   schema   = "deployment.schema.json"
-  error_message_template = "::error file={{.Schema}},line=1::{{.Error}}"
+  error_message_template = "{{range .Errors}}::error file={{$.Schema}}::{{.Message}}{{if .Path}} at {{.Path}}{{end}}\n{{end}}"
 }
 ```
 
-### Enhanced Error Output
+### Advanced Error Templates
 
 ```hcl-terraform
-# Detailed errors (enabled by default)
-data "jsonschema_validator" "api_config" {
+# Detailed format with schema information
+data "jsonschema_validator" "detailed_format" {
   document = file("config.json")
   schema   = "config.schema.json"
-  # detailed_errors = true  # Default behavior
+  error_message_template = <<-EOT
+    Schema: {{.Schema}}
+    Errors: {{.ErrorCount}}
+    {{range .Errors}}• {{.Path}}: {{.Message}}
+    {{end}}
+  EOT
 }
 
-# Disable detailed errors for simple output
-data "jsonschema_validator" "simple_validation" {
-  document        = file("config.json")
-  schema          = "config.schema.json"
-  detailed_errors = false  # Simple error messages
+# JSON format for structured logging
+data "jsonschema_validator" "json_format" {
+  document = file("config.json")
+  schema   = "config.schema.json"
+  error_message_template = jsonencode({
+    "validation_failed": true,
+    "schema": "{{.Schema}}",
+    "error_count": "{{.ErrorCount}}",
+    "errors": "{{range $i, $e := .Errors}}{{if $i}},{{end}}{\"path\":\"{{.Path}}\",\"message\":\"{{.Message}}\"}{{end}}"
+  })
 }
 ```
 
 ## Argument Reference
 
 * `document` (Required) - JSON or JSON5 document content to validate.
-* `schema` (Required) - Path to JSON Schema file.
+* `schema` (Required) - Path to JSON or JSON5 schema file.
 * `schema_version` (Optional) - Schema version override (`"draft-04"` to `"draft/2020-12"`).
-* `detailed_errors` (Optional) - Enhanced error output. Defaults to provider setting.
-* `error_message_template` (Optional) - Custom error template. Variables: `{error}`, `{schema}`, `{path}`, `{document}`, `{details}`, `{basic_output}`, `{detailed_output}`.
+* `error_message_template` (Optional) - Custom Go template for error messages. Available variables: `{{.Schema}}`, `{{.Document}}`, `{{.FullMessage}}`, `{{.Errors}}`, `{{.ErrorCount}}`.
 
 ## Attributes Reference
 
@@ -130,43 +141,47 @@ Both `document` content and schema files support JSON5 syntax:
 - **Multi-line strings**: Strings can span multiple lines
 - **Numeric literals**: Hexadecimal numbers, leading/trailing decimal points, numeric separators
 
-## Error Handling
+## Error Templating
 
-### Basic Error Format (detailed_errors = false)
+### Template Variables
 
-Provides simplified error messages:
-- Concise validation failure summary
-- Schema reference location
-- Easy-to-read format for quick troubleshooting
+Available in `error_message_template`:
 
-### Detailed Error Format (detailed_errors = true)
+- `{{.FullMessage}}` - Complete validation error message from jsonschema library
+- `{{.ErrorCount}}` - Number of individual validation errors
+- `{{.Errors}}` - Array of individual validation errors (for iteration)
+- `{{.Document}}` - The document content (truncated if long)
+- `{{.Schema}}` - Path to the schema file
 
-Provides comprehensive error information:
-- Specific validation rule that failed
-- Exact location in the document where validation failed
-- Expected vs. actual values with context
-- JSON Schema path references with full details
-- Structured JSON output for machine processing
+### Individual Error Details
 
-### Template Variables for Error Messages
+Each error in `{{.Errors}}` contains:
 
-When `detailed_errors = false` (default):
-- `{error}` - Simplified error message
-- `{schema}` - Schema file path
-- `{document}` - Document content (truncated)
-- `{path}` - JSON path where error occurred
+- `{{.Message}}` - Human-readable error message
+- `{{.Path}}` - JSON path where the error occurred (e.g., `/user/name`)
+- `{{.SchemaPath}}` - Schema path of the failing constraint
+- `{{.Value}}` - The actual value that failed validation (if available)
 
-When `detailed_errors = true`:
-- `{error}` - Detailed error message with full context
-- `{details}` - Human-readable verbose error breakdown
-- `{basic_output}` - Flat JSON list of all validation errors
-- `{detailed_output}` - Hierarchical JSON structure of validation errors
-- All basic variables above are also available
+### Template Examples
 
-### Structured Output Format
+```hcl-terraform
+# Simple full message (default)
+error_message_template = "{{.FullMessage}}"
 
-The structured JSON outputs (`basic_output` and `detailed_output`) are useful for:
-- Automated error processing in CI/CD pipelines
-- Integration with error monitoring systems
-- Building custom error reporting tools
-- Programmatic analysis of validation failures
+# Individual error iteration
+error_message_template = "{{range .Errors}}{{.Path}}: {{.Message}}\n{{end}}"
+
+# Numbered list format (one-based)
+error_message_template = "{{.ErrorCount}} validation errors:\n{{range $i, $e := .Errors}}{{add $i 1}}. {{.Message}} (at {{.Path}})\n{{end}}"
+
+# CI/CD format
+error_message_template = "{{range .Errors}}::error file={{$.Schema}}::{{.Message}}{{if .Path}} at {{.Path}}{{end}}\n{{end}}"
+```
+
+### Template Functions
+
+The following template function is available:
+
+- `add` - Add two integers: `{{add $i 1}}` (useful for one-based indexing)
+
+Templates support standard Go template syntax for formatting error messages.
