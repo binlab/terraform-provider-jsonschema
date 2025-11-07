@@ -38,7 +38,8 @@ func FormatValidationError(err error, schemaPath, document, errorTemplate string
 	
 	if validationErr, ok := err.(*jsonschema.ValidationError); ok {
 		errors = extractValidationErrors(validationErr)
-		fullMessage = validationErr.Error()
+		// Generate full message using sorted errors for consistency
+		fullMessage = generateSortedFullMessage(validationErr, errors)
 	} else {
 		// For non-validation errors, create a single error detail
 		errors = []ValidationErrorDetail{{
@@ -89,6 +90,52 @@ var CommonErrorTemplates = map[string]string{
 func GetCommonTemplate(name string) (string, bool) {
 	template, exists := CommonErrorTemplates[name]
 	return template, exists
+}
+
+// generateSortedFullMessage creates a full error message using sorted errors for consistency
+func generateSortedFullMessage(err *jsonschema.ValidationError, sortedErrors []ValidationErrorDetail) string {
+	// Use the main error prefix from the original error
+	prefix := fmt.Sprintf("jsonschema validation failed with '%s'", err.SchemaURL)
+	
+	// Build the error list using our sorted errors
+	var errorLines []string
+	for _, detail := range sortedErrors {
+		// Extract just the validation message part (remove path if present)
+		message := extractCleanMessage(detail.Message, detail.Path)
+		
+		// Format the path for display (root path should be empty string, not '/')
+		displayPath := detail.Path
+		if displayPath == "/" {
+			displayPath = ""
+		}
+		
+		errorLine := fmt.Sprintf("- at '%s': %s", displayPath, message)
+		errorLines = append(errorLines, errorLine)
+	}
+	
+	if len(errorLines) > 0 {
+		return prefix + "\n" + strings.Join(errorLines, "\n")
+	}
+	
+	return prefix
+}
+
+// extractCleanMessage removes path information from error messages if present
+func extractCleanMessage(message, path string) string {
+	// Handle root path specifically - it appears as an empty string in paths but "at '': " in messages
+	var expectedPrefix string
+	if path == "/" {
+		expectedPrefix = "at '': "
+	} else {
+		expectedPrefix = fmt.Sprintf("at '%s': ", path)
+	}
+	
+	if strings.HasPrefix(message, expectedPrefix) {
+		return message[len(expectedPrefix):]
+	}
+	
+	// If no path prefix found, return message as-is
+	return message
 }
 
 // extractValidationErrors recursively extracts all validation errors from the error tree
