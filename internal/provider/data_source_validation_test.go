@@ -9,7 +9,6 @@ func TestDataSourceValidationLogic(t *testing.T) {
 		name           string
 		document       string
 		schemaVersion  string
-		baseURL        string
 		errorTemplate  string
 		expectError    bool
 		expectedResult string
@@ -42,7 +41,7 @@ func TestDataSourceValidationLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test config creation
-			config, err := NewProviderConfig(tt.schemaVersion, tt.baseURL, tt.errorTemplate)
+			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate)
 			if err != nil {
 				if tt.expectError {
 					return // Expected error in config creation
@@ -82,7 +81,7 @@ func TestDataSourceSchemaStructure(t *testing.T) {
 	ds := dataSourceJsonschemaValidator()
 	
 	// Test that all required fields are present in the schema
-	expectedFields := []string{"document", "schema", "schema_version", "base_url", "error_message_template"}
+	expectedFields := []string{"document", "schema", "schema_version", "error_message_template"}
 	
 	for _, field := range expectedFields {
 		if _, ok := ds.Schema[field]; !ok {
@@ -106,45 +105,35 @@ func TestConfigurationOverrides(t *testing.T) {
 	tests := []struct {
 		name                    string
 		providerSchemaVersion   string
-		providerBaseURL         string  
 		providerErrorTemplate   string
 		resourceSchemaVersion   string
-		resourceBaseURL         string
 		resourceErrorTemplate   string
 		expectedSchemaVersion   string
-		expectedBaseURL         string
 		expectedErrorTemplate   string
 	}{
 		{
 			name:                  "provider defaults only",
 			providerSchemaVersion: "draft-07",
-			providerBaseURL:       "https://provider.com/",
 			providerErrorTemplate: "Provider error: {error}",
 			expectedSchemaVersion: "draft-07",
-			expectedBaseURL:       "https://provider.com/",
 			expectedErrorTemplate: "Provider error: {error}",
 		},
 		{
 			name:                  "resource overrides provider",
 			providerSchemaVersion: "draft-07",
-			providerBaseURL:       "https://provider.com/",
 			providerErrorTemplate: "Provider error: {error}",
 			resourceSchemaVersion: "draft-04",
-			resourceBaseURL:       "https://resource.com/",
 			resourceErrorTemplate: "Resource error: {error}",
 			expectedSchemaVersion: "draft-04",
-			expectedBaseURL:       "https://resource.com/",
 			expectedErrorTemplate: "Resource error: {error}",
 		},
 		{
 			name:                  "partial resource overrides",
 			providerSchemaVersion: "draft-07",
-			providerBaseURL:       "https://provider.com/",
 			providerErrorTemplate: "Provider error: {error}",
 			resourceSchemaVersion: "draft-04",
-			// resource doesn't specify baseURL or error template
+			// resource doesn't specify error template
 			expectedSchemaVersion: "draft-04",
-			expectedBaseURL:       "https://provider.com/",
 			expectedErrorTemplate: "Provider error: {error}",
 		},
 	}
@@ -152,7 +141,7 @@ func TestConfigurationOverrides(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test the configuration resolution logic
-			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerBaseURL, tt.providerErrorTemplate)
+			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerErrorTemplate)
 			if err != nil {
 				t.Fatalf("unexpected provider config error: %v", err)
 			}
@@ -163,23 +152,9 @@ func TestConfigurationOverrides(t *testing.T) {
 				finalSchemaVersion = providerConfig.DefaultSchemaVersion
 			}
 
-			finalBaseURL := tt.resourceBaseURL
-			if finalBaseURL == "" {
-				finalBaseURL = providerConfig.DefaultBaseURL
-			}
-
 			finalErrorTemplate := tt.resourceErrorTemplate
 			if finalErrorTemplate == "" {
 				finalErrorTemplate = providerConfig.DefaultErrorTemplate
-			}
-
-			// Verify the final configuration matches expectations
-			if finalSchemaVersion != tt.expectedSchemaVersion {
-				t.Errorf("expected schema version %q, got %q", tt.expectedSchemaVersion, finalSchemaVersion)
-			}
-
-			if finalBaseURL != tt.expectedBaseURL {
-				t.Errorf("expected base URL %q, got %q", tt.expectedBaseURL, finalBaseURL)
 			}
 
 			if finalErrorTemplate != tt.expectedErrorTemplate {

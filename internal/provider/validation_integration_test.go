@@ -108,45 +108,35 @@ func TestConfigurationResolution(t *testing.T) {
 	tests := []struct {
 		name                      string
 		providerSchemaVersion     string
-		providerBaseURL           string
 		providerErrorTemplate     string
 		resourceSchemaVersion     string
-		resourceBaseURL           string
 		resourceErrorTemplate     string
 		expectedFinalVersion      string
-		expectedFinalBaseURL      string
 		expectedFinalErrorTemplate string
 	}{
 		{
 			name:                      "all provider defaults",
 			providerSchemaVersion:     "draft-07",
-			providerBaseURL:           "https://example.com/",
 			providerErrorTemplate:     "Provider: {error}",
 			expectedFinalVersion:      "draft-07",
-			expectedFinalBaseURL:      "https://example.com/",
 			expectedFinalErrorTemplate: "Provider: {error}",
 		},
 		{
 			name:                      "resource overrides all",
 			providerSchemaVersion:     "draft-07",
-			providerBaseURL:           "https://example.com/",
 			providerErrorTemplate:     "Provider: {error}",
 			resourceSchemaVersion:     "draft-04",
-			resourceBaseURL:           "https://resource.com/",
 			resourceErrorTemplate:     "Resource: {error}",
 			expectedFinalVersion:      "draft-04",
-			expectedFinalBaseURL:      "https://resource.com/",
 			expectedFinalErrorTemplate: "Resource: {error}",
 		},
 		{
 			name:                      "partial resource override",
 			providerSchemaVersion:     "draft-07",
-			providerBaseURL:           "https://example.com/",
 			providerErrorTemplate:     "Provider: {error}",
 			resourceSchemaVersion:     "draft-04",
-			// resource doesn't specify base URL or error template
+			// resource doesn't specify error template
 			expectedFinalVersion:      "draft-04",
-			expectedFinalBaseURL:      "https://example.com/",
 			expectedFinalErrorTemplate: "Provider: {error}",
 		},
 	}
@@ -154,7 +144,7 @@ func TestConfigurationResolution(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create provider config
-			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerBaseURL, tt.providerErrorTemplate)
+			providerConfig, err := NewProviderConfig(tt.providerSchemaVersion, tt.providerErrorTemplate)
 			if err != nil {
 				t.Fatalf("failed to create provider config: %v", err)
 			}
@@ -165,11 +155,6 @@ func TestConfigurationResolution(t *testing.T) {
 				finalVersion = providerConfig.DefaultSchemaVersion
 			}
 
-			finalBaseURL := tt.resourceBaseURL
-			if finalBaseURL == "" {
-				finalBaseURL = providerConfig.DefaultBaseURL
-			}
-
 			finalErrorTemplate := tt.resourceErrorTemplate
 			if finalErrorTemplate == "" {
 				finalErrorTemplate = providerConfig.DefaultErrorTemplate
@@ -178,9 +163,6 @@ func TestConfigurationResolution(t *testing.T) {
 			// Verify the resolution matches expectations
 			if finalVersion != tt.expectedFinalVersion {
 				t.Errorf("expected final version %q, got %q", tt.expectedFinalVersion, finalVersion)
-			}
-			if finalBaseURL != tt.expectedFinalBaseURL {
-				t.Errorf("expected final base URL %q, got %q", tt.expectedFinalBaseURL, finalBaseURL)
 			}
 			if finalErrorTemplate != tt.expectedFinalErrorTemplate {
 				t.Errorf("expected final error template %q, got %q", tt.expectedFinalErrorTemplate, finalErrorTemplate)

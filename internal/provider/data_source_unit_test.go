@@ -52,7 +52,6 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 		document               string
 		schemaFile             string
 		schemaVersionOverride  string
-		baseURLOverride        string
 		errorMessageTemplate   string
 		providerConfig         *ProviderConfig
 		expectError            bool
@@ -111,18 +110,7 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 			expectError:       false,
 			expectedValidated: `{"name":"John"}`,
 		},
-		{
-			name:            "base URL override",
-			document:        `{"name": "John"}`,
-			schemaFile:      schemaFile,
-			baseURLOverride: "https://example.com/schemas/",
-			providerConfig: &ProviderConfig{
-				DefaultBaseURL:       "https://default.com/",
-				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
-			},
-			expectError:       false,
-			expectedValidated: `{"name":"John"}`,
-		},
+
 		{
 			name:                 "custom error template",
 			document:             `{"name": 123}`, // invalid type
@@ -163,7 +151,6 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 				"document":               tt.document,
 				"schema":                 tt.schemaFile,
 				"schema_version":         tt.schemaVersionOverride,
-				"base_url":               tt.baseURLOverride,
 				"error_message_template": tt.errorMessageTemplate,
 			})
 
@@ -341,7 +328,6 @@ func TestDataSourceJsonschemaValidatorRead_ConfigurationCombinations(t *testing.
 			name: "provider defaults only",
 			providerConfig: &ProviderConfig{
 				DefaultSchemaVersion: "draft-07",
-				DefaultBaseURL:       "https://example.com/",
 				DefaultErrorTemplate: "Provider: {error}",
 			},
 			resourceConfig: map[string]interface{}{
@@ -354,7 +340,6 @@ func TestDataSourceJsonschemaValidatorRead_ConfigurationCombinations(t *testing.
 			name: "resource overrides all",
 			providerConfig: &ProviderConfig{
 				DefaultSchemaVersion: "draft-07",
-				DefaultBaseURL:       "https://example.com/",
 				DefaultErrorTemplate: "Provider: {error}",
 			},
 			resourceConfig: map[string]interface{}{

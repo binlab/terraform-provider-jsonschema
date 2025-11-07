@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -34,11 +33,6 @@ func dataSourceJsonschemaValidator() *schema.Resource {
 				Optional:    true,
 				Description: "JSON Schema version override for this validation (overrides provider default)",
 			},
-			"base_url": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Base URL for resolving relative `$ref` URIs for this validation (overrides provider default)",
-			},
 			"error_message_template": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -62,7 +56,6 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	document := d.Get("document").(string)
 	schemaPath := d.Get("schema").(string)
 	schemaVersionOverride := d.Get("schema_version").(string)
-	baseURLOverride := d.Get("base_url").(string)
 	errorMessageTemplate := d.Get("error_message_template").(string)
 	
 	// Use provider default if no template specified
@@ -113,25 +106,12 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		return fmt.Errorf("failed to convert schema to JSON: %w", err)
 	}
 
-	// Determine base URL for ref resolution
-	effectiveBaseURL := config.DefaultBaseURL
-	if baseURLOverride != "" {
-		effectiveBaseURL = baseURLOverride
+	// Generate schema URL based on the schema file path
+	schemaDir, err := filepath.Abs(filepath.Dir(schemaPath))
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for schema directory: %w", err)
 	}
-
-	// Generate schema URL for compilation
-	var schemaURL string
-	if effectiveBaseURL != "" {
-		// Use the provided base URL
-		schemaURL = strings.TrimRight(effectiveBaseURL, "/") + "/schema.json"
-	} else {
-		// Use file-based URL relative to schema file location
-		schemaDir, err := filepath.Abs(filepath.Dir(schemaPath))
-		if err != nil {
-			return fmt.Errorf("failed to get absolute path for schema directory: %w", err)
-		}
-		schemaURL = fmt.Sprintf("file://%s/schema.json", schemaDir)
-	}
+	schemaURL := fmt.Sprintf("file://%s/schema.json", schemaDir)
 
 	// Compile the schema using CompileString
 	compiledSchema, err := jsonschema.CompileString(schemaURL, string(schemaJSON))
@@ -158,11 +138,10 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	// Generate ID based on document, schema, and configuration
 	// schemaJSON is already available from earlier in the function
 	
-	compositeString := fmt.Sprintf("%s:%s:%s:%s", 
+	compositeString := fmt.Sprintf("%s:%s:%s", 
 		string(canonicalJSON), 
 		string(schemaJSON), 
 		effectiveSchemaVersion,
-		effectiveBaseURL,
 	)
 	d.SetId(hash(compositeString))
 

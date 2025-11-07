@@ -21,7 +21,7 @@ Features
 
 - **JSON5 Support**: Parse and validate both JSON and JSON5 format documents and schemas
 - **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
-- **Flexible Reference Resolution**: Configurable base URLs for resolving ``$ref`` URIs
+- **Automatic Reference Resolution**: Resolves ``$ref`` URIs relative to schema file location
 - **Custom Error Templates**: Customize validation error messages with templating support
 - **Robust Validation**: Powered by ``santhosh-tekuri/jsonschema/v5`` for comprehensive validation
 - **Deterministic Output**: Consistent JSON marshaling for stable resource IDs
@@ -58,9 +58,6 @@ Provider Configuration
     # Default JSON Schema version (optional)
     # Supported: "draft-04", "draft-06", "draft-07", "draft/2019-09", "draft/2020-12"
     schema_version = "draft/2020-12"  # Default
-    
-    # Base URL for resolving $ref URIs (optional)
-    base_url = "https://example.com/schemas/"
     
     # Default error message template (optional)
     error_message_template = "Validation failed: {error} in {schema}"
@@ -120,16 +117,19 @@ Advanced Configuration
     schema_version = "draft-04"  # Override provider default
   }
 
-  # Remote schema with per-resource base URL
-  data "jsonschema_validator" "remote_validation" {
-    document = file("data.json")
-    schema   = "api/v1/schema.json"
-    base_url = "https://schemas.example.com/"  # Base URL for this validation
+  # Custom error message template per validation
+  data "jsonschema_validator" "detailed_validation" {
+    document               = file("config.json")
+    schema                 = "config.schema.json"
+    error_message_template = "Configuration error in {schema}: {error}"
   }
 
-  # Or use provider-level base URL as fallback
-  provider "jsonschema" {
-    base_url = "https://default-schemas.example.com/"
+  # Schema references are resolved relative to schema file location
+  # For example, if schema is at "/path/to/schemas/main.schema.json"
+  # then "$ref": "./types.json" resolves to "/path/to/schemas/types.json"
+  data "jsonschema_validator" "with_refs" {
+    document = file("document.json")
+    schema   = "${path.module}/schemas/main.schema.json"  # Contains $ref references
   }
 
 Development

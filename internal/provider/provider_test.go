@@ -23,7 +23,6 @@ func TestProviderConfigure(t *testing.T) {
 	tests := []struct {
 		name          string
 		schemaVersion string
-		baseURL       string
 		errorTemplate string
 		expectError   bool
 		errorContains string
@@ -31,29 +30,19 @@ func TestProviderConfigure(t *testing.T) {
 		{
 			name:          "valid configuration",
 			schemaVersion: "draft-07",
-			baseURL:       "https://example.com/",
 			errorTemplate: "Error: {error}",
 			expectError:   false,
 		},
 		{
 			name:          "invalid schema version",
 			schemaVersion: "invalid-version",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   true,
 			errorContains: "unsupported JSON Schema version",
 		},
 		{
-			name:          "valid with base URL",
-			schemaVersion: "draft-07",
-			baseURL:       "./schemas/",
-			errorTemplate: "",
-			expectError:   false,
-		},
-		{
 			name:          "defaults",
 			schemaVersion: "",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   false,
 		},
@@ -63,7 +52,7 @@ func TestProviderConfigure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test the config creation logic directly (since testing the actual
 			// providerConfigure function would require complex mocking)
-			config, err := NewProviderConfig(tt.schemaVersion, tt.baseURL, tt.errorTemplate)
+			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate)
 
 			if tt.expectError {
 				if err == nil {
@@ -102,7 +91,6 @@ func TestProviderConfigureFunction(t *testing.T) {
 			name: "valid configuration with all fields",
 			configData: map[string]interface{}{
 				"schema_version":        "draft-07",
-				"base_url":             "https://example.com/schemas/",
 				"error_message_template": "Error in {schema}: {error}",
 			},
 			expectError: false,
@@ -111,7 +99,6 @@ func TestProviderConfigureFunction(t *testing.T) {
 			name: "valid configuration with defaults",
 			configData: map[string]interface{}{
 				"schema_version":        "draft/2020-12",
-				"base_url":             "",
 				"error_message_template": "JSON Schema validation failed: {error}",
 			},
 			expectError: false,
@@ -120,7 +107,6 @@ func TestProviderConfigureFunction(t *testing.T) {
 			name: "invalid schema version",
 			configData: map[string]interface{}{
 				"schema_version":        "invalid-draft",
-				"base_url":             "",
 				"error_message_template": "",
 			},
 			expectError:   true,
@@ -130,17 +116,7 @@ func TestProviderConfigureFunction(t *testing.T) {
 			name: "empty configuration (should use defaults)",
 			configData: map[string]interface{}{
 				"schema_version":        "",
-				"base_url":             "",
 				"error_message_template": "",
-			},
-			expectError: false,
-		},
-		{
-			name: "file path as base URL",
-			configData: map[string]interface{}{
-				"schema_version":        "draft-06",
-				"base_url":             "./local/schemas/",
-				"error_message_template": "Validation error: {error}",
 			},
 			expectError: false,
 		},
@@ -201,11 +177,6 @@ func TestProviderConfigureFunction(t *testing.T) {
 				t.Errorf("expected schema version %q, got %q", expectedSchemaVersion, config.DefaultSchemaVersion)
 			}
 
-			expectedBaseURL := tt.configData["base_url"].(string)
-			if config.DefaultBaseURL != expectedBaseURL {
-				t.Errorf("expected base URL %q, got %q", expectedBaseURL, config.DefaultBaseURL)
-			}
-
 			expectedErrorTemplate := tt.configData["error_message_template"].(string)
 			if expectedErrorTemplate == "" {
 				expectedErrorTemplate = "JSON Schema validation failed: {error}" // Default
@@ -221,7 +192,7 @@ func TestProviderSchemaDefinition(t *testing.T) {
 	provider := Provider()
 
 	// Test that all expected schema fields exist
-	expectedFields := []string{"schema_version", "base_url", "error_message_template"}
+	expectedFields := []string{"schema_version", "error_message_template"}
 	
 	for _, field := range expectedFields {
 		if _, exists := provider.Schema[field]; !exists {
@@ -239,15 +210,6 @@ func TestProviderSchemaDefinition(t *testing.T) {
 	}
 	if !schemaVersionField.Optional {
 		t.Errorf("expected schema_version to be optional")
-	}
-
-	// Test base_url field properties
-	baseURLField := provider.Schema["base_url"]
-	if baseURLField.Type != schema.TypeString {
-		t.Errorf("expected base_url to be TypeString, got %v", baseURLField.Type)
-	}
-	if baseURLField.Default != "" {
-		t.Errorf("expected base_url default to be empty string, got %v", baseURLField.Default)
 	}
 
 	// Test error_message_template field properties

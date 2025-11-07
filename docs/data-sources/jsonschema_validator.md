@@ -42,13 +42,13 @@ data "jsonschema_validator" "legacy_validation" {
 }
 ```
 
-### Remote Schema with Base URL
+### Schema with References
 
 ```hcl-terraform
-data "jsonschema_validator" "remote_validation" {
+# Schema file with $ref references resolved relative to schema location
+data "jsonschema_validator" "with_refs" {
   document = file("config.json")
-  schema   = "api/v1/config.schema.json"
-  base_url = "https://schemas.example.com/"  # Resolves to https://schemas.example.com/api/v1/config.schema.json
+  schema   = "${path.module}/schemas/main.schema.json"  # Contains $ref: "./types.json"
 }
 ```
 
@@ -85,9 +85,8 @@ data "jsonschema_validator" "ci_errors" {
 ## Argument Reference
 
 * `document` (Required) - Content of a JSON or JSON5 document to validate. Supports both inline content and `file()` function.
-* `schema` (Required) - Path to a JSON or JSON5 schema file. Can be a local file path or a URL (when `base_url` is configured).
+* `schema` (Required) - Path to a JSON or JSON5 schema file. Must be a local file path relative to the Terraform configuration directory.
 * `schema_version` (Optional) - JSON Schema version override for this specific validation. Overrides the provider's default `schema_version`. Supported values: `"draft-04"`, `"draft-06"`, `"draft-07"`, `"draft/2019-09"`, `"draft/2020-12"`.
-* `base_url` (Optional) - Base URL for resolving relative `$ref` URIs in schemas for this specific validation. Overrides the provider's default `base_url`.
 * `error_message_template` (Optional) - Template for formatting validation error messages. Overrides the provider's default template. Available variables: `{{.Error}}`, `{{.Schema}}`, `{{.Document}}`, `{{.Path}}` (Go template syntax) or `{error}`, `{schema}`, `{document}`, `{path}` (simple syntax).
 
 ## Attributes Reference
@@ -97,9 +96,9 @@ data "jsonschema_validator" "ci_errors" {
 ## Schema File Resolution
 
 - **Local files**: Schema paths are resolved relative to the Terraform configuration directory
-- **Remote schemas**: When `base_url` is configured (either at data source or provider level), schema paths are resolved against the base URL
-- **Absolute URLs**: Full URLs in the `schema` argument are used as-is
-- **Resolution priority**: Data source `base_url` takes precedence over provider `base_url`
+- **Schema references**: `$ref` URIs in schemas are resolved relative to the schema file's location
+- **Relative references**: For example, if your schema is at `./schemas/main.schema.json` and contains `"$ref": "./types.json"`, it resolves to `./schemas/types.json`
+- **Absolute references**: Full file paths or URLs in `$ref` are used as-is
 
 ## JSON5 Features Supported
 

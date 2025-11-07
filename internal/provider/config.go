@@ -11,9 +11,6 @@ type ProviderConfig struct {
 	// DefaultSchemaVersion specifies the JSON Schema version to use when not specified in the schema
 	DefaultSchemaVersion string
 	
-	// DefaultBaseURL is used as the default base URL for resolving $ref URIs
-	DefaultBaseURL string
-	
 	// DefaultErrorTemplate is the default error message template
 	DefaultErrorTemplate string
 	
@@ -22,7 +19,7 @@ type ProviderConfig struct {
 }
 
 // NewProviderConfig creates a new provider configuration with defaults
-func NewProviderConfig(schemaVersion, baseURL, errorTemplate string) (*ProviderConfig, error) {
+func NewProviderConfig(schemaVersion, errorTemplate string) (*ProviderConfig, error) {
 	// Set sensible default for error template if empty
 	if errorTemplate == "" {
 		errorTemplate = "JSON Schema validation failed: {error}"
@@ -30,7 +27,6 @@ func NewProviderConfig(schemaVersion, baseURL, errorTemplate string) (*ProviderC
 	
 	config := &ProviderConfig{
 		DefaultSchemaVersion: schemaVersion,
-		DefaultBaseURL:       baseURL,
 		DefaultErrorTemplate: errorTemplate,
 		DefaultDraft:         jsonschema.Draft2020, // Default to latest draft
 	}
@@ -43,10 +39,6 @@ func NewProviderConfig(schemaVersion, baseURL, errorTemplate string) (*ProviderC
 		}
 		config.DefaultDraft = draft
 	}
-	
-	// Note: base_url validation is intentionally omitted here
-	// The jsonschema library will handle URL validation and path resolution
-	// This allows maximum flexibility for users (HTTP URLs, file:// URLs, relative paths, etc.)
 	
 	return config, nil
 }

@@ -21,12 +21,6 @@ func New(version string) func() *schema.Provider {
 					Default:     "draft/2020-12",
 					Description: "Default JSON Schema version to use when not specified in schema document. Supported values: `draft-04`, `draft-06`, `draft-07`, `draft/2019-09`, `draft/2020-12`",
 				},
-				"base_url": {
-					Type:        schema.TypeString,
-					Optional:    true,
-					Default:     "",
-					Description: "Default base URL for resolving relative `$ref` URIs in schemas. Can be overridden per data source.",
-				},
 				"error_message_template": {
 					Type:        schema.TypeString,
 					Optional:    true,
@@ -52,10 +46,9 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	var diags diag.Diagnostics
 
 	schemaVersion := d.Get("schema_version").(string)
-	baseURL := d.Get("base_url").(string)
 	errorTemplate := d.Get("error_message_template").(string)
 
-	config, err := NewProviderConfig(schemaVersion, baseURL, errorTemplate)
+	config, err := NewProviderConfig(schemaVersion, errorTemplate)
 	if err != nil {
 		return nil, diag.FromErr(err)
 	}

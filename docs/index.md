@@ -6,7 +6,8 @@ Terraform provider for validating JSON and JSON5 documents using [JSON Schema](h
 
 - **JSON5 Support**: Parse and validate both JSON and JSON5 format documents and schemas
 - **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
-- **Flexible Reference Resolution**: Configurable base URLs for resolving `$ref` URIs
+- **Automatic Reference Resolution**: Resolves `$ref` URIs relative to schema file location
+- **Custom Error Templates**: Customize validation error messages with templating support
 - **Robust Validation**: Powered by `santhosh-tekuri/jsonschema/v5` for comprehensive validation
 
 ## Provider Configuration
@@ -17,9 +18,6 @@ provider "jsonschema" {
   # Supported: "draft-04", "draft-06", "draft-07", "draft/2019-09", "draft/2020-12"
   schema_version = "draft/2020-12"  # Default value
   
-  # Base URL for resolving $ref URIs (optional)
-  base_url = "https://example.com/schemas/"
-  
   # Default error message template (optional)
   error_message_template = "JSON Schema validation failed: {error} in {schema}"
 }
@@ -28,7 +26,6 @@ provider "jsonschema" {
 ### Configuration Arguments
 
 - `schema_version` (Optional) - Default JSON Schema version to use when not specified in the schema document. Supported values: `"draft-04"`, `"draft-06"`, `"draft-07"`, `"draft/2019-09"`, `"draft/2020-12"`. Defaults to `"draft/2020-12"`.
-- `base_url` (Optional) - Default base URL for resolving relative `$ref` URIs in schemas. This serves as a fallback when the data source doesn't specify its own `base_url`.
 - `error_message_template` (Optional) - Default error message template for validation failures. Can be overridden per data source. Available variables: `{{.Error}}`, `{{.Schema}}`, `{{.Document}}`, `{{.Path}}` (Go template syntax) or `{error}`, `{schema}`, `{document}`, `{path}` (simple syntax).
 
 ## Basic Example
@@ -80,29 +77,32 @@ data "jsonschema_validator" "legacy_config" {
   schema_version = "draft-04"  # Override provider default
 }
 
-# Remote schema with per-resource base URL
-data "jsonschema_validator" "remote_validation" {
-  document = file("data.json")
-  schema   = "api/v1/schema.json"
-  base_url = "https://schemas.example.com/"  # Base URL for this validation
+# Custom error message template per validation
+data "jsonschema_validator" "detailed_validation" {
+  document               = file("config.json")
+  schema                 = "config.schema.json"
+  error_message_template = "Configuration error in {schema}: {error}"
 }
 
-# Multiple schemas from different sources
+# Schema references are resolved relative to schema file location
+# For example, if schema is at "/path/to/schemas/main.schema.json"
+# then "$ref": "./types.json" resolves to "/path/to/schemas/types.json"
+data "jsonschema_validator" "with_refs" {
+  document = file("document.json")
+  schema   = "${path.module}/schemas/main.schema.json"  # Contains $ref references
+}
+
+# Multiple schema validations with different versions
 data "jsonschema_validator" "api_validation" {
-  document = file("api-config.json")
-  schema   = "openapi/v3.1/config.schema.json"
-  base_url = "https://api-schemas.company.com/"
+  document       = file("api-config.json")
+  schema         = "${path.module}/schemas/openapi/config.schema.json"
+  schema_version = "draft/2019-09"
 }
 
-data "jsonschema_validator" "internal_validation" {
-  document = file("internal-config.json") 
-  schema   = "internal/service.schema.json"
-  base_url = "https://internal-schemas.company.com/"
-}
-
-# Provider-level base URL as fallback (optional)
-provider "jsonschema" {
-  base_url = "https://default-schemas.example.com/"  # Used when data source base_url not specified
+data "jsonschema_validator" "legacy_validation" {
+  document       = file("legacy-config.json") 
+  schema         = "${path.module}/schemas/legacy/service.schema.json"
+  schema_version = "draft-04"
 }
 ```
 

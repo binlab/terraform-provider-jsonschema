@@ -9,7 +9,6 @@ func TestNewProviderConfig(t *testing.T) {
 	tests := []struct {
 		name           string
 		schemaVersion  string
-		baseURL       string
 		errorTemplate string
 		expectError   bool
 		errorContains string
@@ -17,64 +16,43 @@ func TestNewProviderConfig(t *testing.T) {
 		{
 			name:          "valid draft-07",
 			schemaVersion: "draft-07",
-			baseURL:       "https://example.com",
 			errorTemplate: "Error: {error}",
 			expectError:   false,
 		},
 		{
 			name:          "valid draft-04",
 			schemaVersion: "draft-04",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   false,
 		},
 		{
 			name:          "valid draft-06",
 			schemaVersion: "draft-06",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   false,
 		},
 		{
 			name:          "valid draft/2019-09",
 			schemaVersion: "draft/2019-09",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   false,
 		},
 		{
 			name:          "valid draft/2020-12",
 			schemaVersion: "draft/2020-12",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   false,
 		},
 		{
 			name:          "invalid schema version",
 			schemaVersion: "invalid-version",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   true,
 			errorContains: "unsupported JSON Schema version",
 		},
 		{
-			name:          "valid with base URL",
-			schemaVersion: "draft-07",
-			baseURL:       "https://example.com/schemas/",
-			errorTemplate: "",
-			expectError:   false,
-		},
-		{
-			name:          "valid with file path",
-			schemaVersion: "draft-07",
-			baseURL:       "./schemas/",
-			errorTemplate: "",
-			expectError:   false,
-		},
-		{
 			name:          "default empty values",
 			schemaVersion: "",
-			baseURL:       "",
 			errorTemplate: "",
 			expectError:   false,
 		},
@@ -82,7 +60,7 @@ func TestNewProviderConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config, err := NewProviderConfig(tt.schemaVersion, tt.baseURL, tt.errorTemplate)
+			config, err := NewProviderConfig(tt.schemaVersion, tt.errorTemplate)
 
 			if tt.expectError {
 				if err == nil {
