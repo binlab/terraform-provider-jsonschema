@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
@@ -504,6 +505,13 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create invalid schema override (not a valid JSON Schema object)
+	invalidSchemaOverrideContent := `{"$schema": "invalid-meta-schema-url"}`
+	invalidSchemaOverrideFile := filepath.Join(tempDir, "invalid_schema.json")
+	if err := os.WriteFile(invalidSchemaOverrideFile, []byte(invalidSchemaOverrideContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name          string
 		document      string
@@ -554,6 +562,15 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 			},
 			expectError:   true,
 			errorContains: "ref_override: failed to read local file",
+		},
+		{
+			name:     "invalid schema structure in override",
+			document: `{"user": {"name": "John"}}`,
+			refOverrides: map[string]interface{}{
+				"https://example.com/schemas/user.json": invalidSchemaOverrideFile,
+			},
+			expectError:   true,
+			errorContains: "failed to compile schema",
 		},
 	}
 
@@ -687,6 +704,16 @@ func TestDataSourceJsonschemaValidatorRead_DraftHandling(t *testing.T) {
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "{{.FullMessage}}",
 				DefaultDraft:         nil,
+			},
+			schemaVersion: "",
+			expectError:   false,
+		},
+		{
+			name: "use default draft when no schema version",
+			providerConfig: &ProviderConfig{
+				DefaultErrorTemplate: "{{.FullMessage}}",
+				DefaultSchemaVersion: "",
+				DefaultDraft:         jsonschema.Draft7,
 			},
 			schemaVersion: "",
 			expectError:   false,

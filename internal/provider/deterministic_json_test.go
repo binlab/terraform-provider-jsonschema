@@ -747,3 +747,75 @@ func TestSortKeysInterfaceWithNonNilElem(t *testing.T) {
 		t.Error("Expected a_key in result")
 	}
 }
+func TestSortKeysWithJSONNull(t *testing.T) {
+	// Test that unmarshaled JSON with null value triggers the reflect.Interface case
+	// When JSON is unmarshaled, null becomes interface{} with nil value
+	jsonData := `null`
+	
+	var data interface{}
+	if err := json.Unmarshal([]byte(jsonData), &data); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+	
+	// data should be nil after unmarshaling "null"
+	if data != nil {
+		t.Errorf("Expected nil after unmarshaling null, got: %v", data)
+	}
+	
+	// sortKeys should handle the null value (which is interface{} containing nil)
+	result := sortKeys(data)
+	
+	// Result should be nil
+	if result != nil {
+		t.Errorf("Expected nil result, got: %v", result)
+	}
+	
+	// Marshal back to JSON
+	resultJSON, err := MarshalDeterministic(result)
+	if err != nil {
+		t.Fatalf("Failed to marshal result: %v", err)
+	}
+	
+	// Verify null is preserved
+	expected := `null`
+	if string(resultJSON) != expected {
+		t.Errorf("Expected %s, got %s", expected, string(resultJSON))
+	}
+}
+
+func TestSortKeysInterfaceNonNilWithValue(t *testing.T) {
+	// Test the reflect.Interface case where IsNil() is false and contains a value
+	// This specifically tests the return sortKeys(v.Elem().Interface()) path
+	
+	// Create data with interface{} values wrapping different types
+	jsonData := `{
+		"z_string": "last",
+		"a_number": 42,
+		"m_bool": true,
+		"nested": {
+			"z_nested": "value",
+			"a_nested": null
+		}
+	}`
+	
+	var data interface{}
+	if err := json.Unmarshal([]byte(jsonData), &data); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+	
+	// When unmarshaling, the values in the map are interface{} wrapping concrete types
+	// sortKeys needs to recursively handle these interfaces
+	result := sortKeys(data)
+	
+	// Marshal back to JSON
+	resultJSON, err := MarshalDeterministic(result)
+	if err != nil {
+		t.Fatalf("Failed to marshal result: %v", err)
+	}
+	
+	// Verify keys are sorted and values are preserved, including nested null
+	expected := `{"a_number":42,"m_bool":true,"nested":{"a_nested":null,"z_nested":"value"},"z_string":"last"}`
+	if string(resultJSON) != expected {
+		t.Errorf("Expected %s, got %s", expected, string(resultJSON))
+	}
+}
