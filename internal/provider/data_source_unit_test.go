@@ -205,6 +205,36 @@ func TestDataSourceJsonschemaValidatorRead_InvalidProviderConfig(t *testing.T) {
 	}
 }
 
+func TestDataSourceJsonschemaValidatorRead_InvalidDocumentParsing(t *testing.T) {
+	// Create temporary schema file
+	tempDir, err := os.MkdirTemp("", "jsonschema_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	schemaContent := `{"type": "object"}`
+	schemaFile := filepath.Join(tempDir, "test.schema.json")
+	if err := os.WriteFile(schemaFile, []byte(schemaContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
+		"document": `{"test": "\x"}`, // invalid escape sequence
+		"schema":   schemaFile,
+	})
+
+	config := &ProviderConfig{
+		DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+	}
+
+	err = dataSourceJsonschemaValidatorRead(resourceData, config)
+	
+	if err == nil || !strings.Contains(err.Error(), "failed to parse document") {
+		t.Errorf("expected 'failed to parse document' error, got: %v", err)
+	}
+}
+
 func TestDataSourceJsonschemaValidatorRead_InvalidSchemaVersion(t *testing.T) {
 	// Create temporary schema file
 	tempDir, err := os.MkdirTemp("", "jsonschema_test")
@@ -240,18 +270,33 @@ func TestDataSourceJsonschemaValidatorRead_InvalidSchemaVersion(t *testing.T) {
 	}
 }
 
-func TestDataSourceJsonschemaValidatorRead_InvalidSchemaFile(t *testing.T) {
-	// Create temporary directory
+func TestDataSourceJsonschemaValidatorRead_MissingSchemaFile(t *testing.T) {
+	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
+		"document": `{"test": "value"}`,
+		"schema":   "/path/to/nonexistent/schema.json",
+	})
+
+	config := &ProviderConfig{
+		DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+	}
+
+	err := dataSourceJsonschemaValidatorRead(resourceData, config)
+	
+	if err == nil || !strings.Contains(err.Error(), "failed to read schema file") {
+		t.Errorf("expected 'failed to read schema file' error, got: %v", err)
+	}
+}
+
+func TestDataSourceJsonschemaValidatorRead_UnreadableSchemaFile(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "jsonschema_test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Create invalid JSON schema file
-	invalidSchemaContent := `{invalid json`
-	schemaFile := filepath.Join(tempDir, "invalid.schema.json")
-	if err := os.WriteFile(schemaFile, []byte(invalidSchemaContent), 0644); err != nil {
+	// Create a file with no read permissions
+	schemaFile := filepath.Join(tempDir, "unreadable.schema.json")
+	if err := os.WriteFile(schemaFile, []byte(`{"type": "object"}`), 0000); err != nil {
 		t.Fatal(err)
 	}
 
@@ -266,12 +311,37 @@ func TestDataSourceJsonschemaValidatorRead_InvalidSchemaFile(t *testing.T) {
 
 	err = dataSourceJsonschemaValidatorRead(resourceData, config)
 	
-	if err == nil {
-		t.Errorf("expected error for invalid schema file")
+	if err == nil || !strings.Contains(err.Error(), "failed to read schema file") {
+		t.Errorf("expected 'failed to read schema file' error, got: %v", err)
 	}
+}
+
+func TestDataSourceJsonschemaValidatorRead_InvalidSchemaFile(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "jsonschema_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create schema file with invalid escape sequence
+	schemaFile := filepath.Join(tempDir, "invalid.schema.json")
+	if err := os.WriteFile(schemaFile, []byte(`{"type": "\x"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
+		"document": `{"test": "value"}`,
+		"schema":   schemaFile,
+	})
+
+	config := &ProviderConfig{
+		DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+	}
+
+	err = dataSourceJsonschemaValidatorRead(resourceData, config)
 	
-	if !strings.Contains(err.Error(), "failed to parse schema file") {
-		t.Errorf("expected specific error message, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "failed to parse schema file") {
+		t.Errorf("expected 'failed to parse schema file' error, got: %v", err)
 	}
 }
 
@@ -428,6 +498,12 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create unreadable override file
+	unreadableOverrideFile := filepath.Join(tempDir, "unreadable.schema.json")
+	if err := os.WriteFile(unreadableOverrideFile, []byte(`{"type": "object"}`), 0000); err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name          string
 		document      string
@@ -469,6 +545,15 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 			},
 			expectError:   true,
 			errorContains: "ref_override: failed to parse local file",
+		},
+		{
+			name:     "unreadable override file",
+			document: `{"user": {"name": "John"}}`,
+			refOverrides: map[string]interface{}{
+				"https://example.com/schemas/user.json": unreadableOverrideFile,
+			},
+			expectError:   true,
+			errorContains: "ref_override: failed to read local file",
 		},
 	}
 

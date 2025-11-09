@@ -1,9 +1,12 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
+	
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func TestErrorMessageTemplating(t *testing.T) {
@@ -649,6 +652,349 @@ func TestCompactDeterministicJSONEdgeCases(t *testing.T) {
 			}
 			if !tt.wantErr && len(result) == 0 {
 				t.Error("Expected non-empty result for valid input")
+			}
+		})
+	}
+}
+
+// TestExtractValueAtPath tests the extractValueAtPath function comprehensively
+func TestExtractValueAtPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     interface{}
+		path     []string
+		expected string
+	}{
+		{
+			name:     "nil data, empty path",
+			data:     nil,
+			path:     []string{},
+			expected: "null",
+		},
+		{
+			name:     "root level string",
+			data:     "test value",
+			path:     []string{},
+			expected: `"test value"`,
+		},
+		{
+			name:     "root level number",
+			data:     42,
+			path:     []string{},
+			expected: "42",
+		},
+		{
+			name:     "root level boolean",
+			data:     true,
+			path:     []string{},
+			expected: "true",
+		},
+		{
+			name: "root level object truncated",
+			data: map[string]interface{}{
+				"key": strings.Repeat("x", 120),
+			},
+			path:     []string{},
+			expected: "", // Should be truncated with "..."
+		},
+		{
+			name: "simple object property",
+			data: map[string]interface{}{
+				"name": "John",
+			},
+			path:     []string{"name"},
+			expected: `"John"`,
+		},
+		{
+			name: "nested object property",
+			data: map[string]interface{}{
+				"user": map[string]interface{}{
+					"email": "test@example.com",
+				},
+			},
+			path:     []string{"user", "email"},
+			expected: `"test@example.com"`,
+		},
+		{
+			name: "missing property in object",
+			data: map[string]interface{}{
+				"name": "John",
+			},
+			path:     []string{"age"},
+			expected: "",
+		},
+		{
+			name: "array with valid index",
+			data: map[string]interface{}{
+				"items": []interface{}{"first", "second", "third"},
+			},
+			path:     []string{"items", "1"},
+			expected: `"second"`,
+		},
+		{
+			name: "array with index 0",
+			data: map[string]interface{}{
+				"items": []interface{}{100, 200, 300},
+			},
+			path:     []string{"items", "0"},
+			expected: "100",
+		},
+		{
+			name: "array with out of bounds index",
+			data: map[string]interface{}{
+				"items": []interface{}{"a", "b"},
+			},
+			path:     []string{"items", "5"},
+			expected: "",
+		},
+		{
+			name: "array with negative index",
+			data: map[string]interface{}{
+				"items": []interface{}{"a", "b"},
+			},
+			path:     []string{"items", "-1"},
+			expected: "",
+		},
+		{
+			name: "array with invalid index string",
+			data: map[string]interface{}{
+				"items": []interface{}{"a", "b"},
+			},
+			path:     []string{"items", "invalid"},
+			expected: "",
+		},
+		{
+			name: "nested array element",
+			data: map[string]interface{}{
+				"users": []interface{}{
+					map[string]interface{}{"id": 1, "name": "Alice"},
+					map[string]interface{}{"id": 2, "name": "Bob"},
+				},
+			},
+			path:     []string{"users", "1", "name"},
+			expected: `"Bob"`,
+		},
+		{
+			name:     "primitive value with path (can't navigate further)",
+			data:     map[string]interface{}{"port": 8080},
+			path:     []string{"port", "invalid"},
+			expected: "",
+		},
+		{
+			name: "null value in object",
+			data: map[string]interface{}{
+				"value": nil,
+			},
+			path:     []string{"value"},
+			expected: "null",
+		},
+		{
+			name: "complex nested structure",
+			data: map[string]interface{}{
+				"config": map[string]interface{}{
+					"servers": []interface{}{
+						map[string]interface{}{
+							"host": "localhost",
+							"port": 8080,
+						},
+					},
+				},
+			},
+			path:     []string{"config", "servers", "0", "port"},
+			expected: "8080",
+		},
+		{
+			name: "array element is null",
+			data: map[string]interface{}{
+				"items": []interface{}{nil, "value", nil},
+			},
+			path:     []string{"items", "0"},
+			expected: "null",
+		},
+		{
+			name: "deeply nested missing property",
+			data: map[string]interface{}{
+				"level1": map[string]interface{}{
+					"level2": map[string]interface{}{
+						"level3": "value",
+					},
+				},
+			},
+			path:     []string{"level1", "level2", "missing", "level4"},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractValueAtPath(tt.data, tt.path)
+			
+			if tt.expected == "" && result != "" {
+				// Check if it's a truncation case
+				if !strings.Contains(result, "...") {
+					t.Errorf("Expected empty string, got: %s", result)
+				}
+			} else if tt.name == "root level object truncated" {
+				// Special case: should be truncated
+				if !strings.Contains(result, "...") && len(result) > 100 {
+					t.Errorf("Expected truncated result with '...', got: %s", result)
+				}
+			} else if result != tt.expected {
+				t.Errorf("Expected: %s, got: %s", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestValueFieldPopulationIntegration tests that Value field is correctly populated in actual validation errors
+func TestValueFieldPopulationIntegration(t *testing.T) {
+	tests := []struct {
+		name           string
+		schema         string
+		document       string
+		expectedValues map[string]string // path -> expected value
+	}{
+		{
+			name: "string value violation",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"name": {"type": "string", "minLength": 5}
+				}
+			}`,
+			document: `{"name": "ab"}`,
+			expectedValues: map[string]string{
+				"/name": `"ab"`,
+			},
+		},
+		{
+			name: "number value violation",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"port": {"type": "integer", "minimum": 1000}
+				}
+			}`,
+			document: `{"port": 80}`,
+			expectedValues: map[string]string{
+				"/port": "80",
+			},
+		},
+		{
+			name: "null value",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"value": {"type": "string"}
+				},
+				"required": ["value"]
+			}`,
+			document: `{"value": null}`,
+			expectedValues: map[string]string{
+				"/value": "null",
+			},
+		},
+		{
+			name: "boolean value",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"enabled": {"type": "string"}
+				}
+			}`,
+			document: `{"enabled": true}`,
+			expectedValues: map[string]string{
+				"/enabled": "true",
+			},
+		},
+		{
+			name: "array element value",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": {"type": "string"}
+					}
+				}
+			}`,
+			document: `{"items": ["valid", 123, "another"]}`,
+			expectedValues: map[string]string{
+				"/items/1": "123",
+			},
+		},
+		{
+			name: "nested object value",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"user": {
+						"type": "object",
+						"properties": {
+							"age": {"type": "integer", "minimum": 18}
+						}
+					}
+				}
+			}`,
+			document: `{"user": {"age": 15}}`,
+			expectedValues: map[string]string{
+				"/user/age": "15",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Load schema
+			compiler := jsonschema.NewCompiler()
+			
+			// Parse schema
+			var schemaData interface{}
+			if err := json.Unmarshal([]byte(tt.schema), &schemaData); err != nil {
+				t.Fatalf("Failed to parse schema: %v", err)
+			}
+			
+			if err := compiler.AddResource("test.schema.json", schemaData); err != nil {
+				t.Fatalf("Failed to add schema: %v", err)
+			}
+			
+			schema, err := compiler.Compile("test.schema.json")
+			if err != nil {
+				t.Fatalf("Failed to compile schema: %v", err)
+			}
+			
+			// Parse document
+			var doc interface{}
+			if err := json.Unmarshal([]byte(tt.document), &doc); err != nil {
+				t.Fatalf("Failed to parse document: %v", err)
+			}
+			
+			// Validate
+			err = schema.Validate(doc)
+			if err == nil {
+				t.Fatal("Expected validation error, got none")
+			}
+			
+			// Type assert to ValidationError
+			validationErr, ok := err.(*jsonschema.ValidationError)
+			if !ok {
+				t.Fatalf("Expected *jsonschema.ValidationError, got %T", err)
+			}
+			
+			// Extract errors
+			errors := extractValidationErrors(validationErr, doc)
+			
+			// Verify Value field is populated correctly
+			for _, valErr := range errors {
+				expectedValue, exists := tt.expectedValues[valErr.DocumentPath]
+				if !exists {
+					continue // Not checking this error
+				}
+				
+				if valErr.Value != expectedValue {
+					t.Errorf("Path %s: expected value %q, got %q", 
+						valErr.DocumentPath, expectedValue, valErr.Value)
+				}
 			}
 		})
 	}
