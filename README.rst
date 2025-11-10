@@ -324,6 +324,18 @@ Pre-commit Hook Integration
 
 The CLI tool integrates seamlessly with `pre-commit <https://pre-commit.com/>`_ for automated validation in your development workflow.
 
+**Prerequisites:**
+
+Install the CLI tool first:
+
+.. code-block:: bash
+
+  # Install latest version
+  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+  
+  # Or install specific version
+  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.5.0
+
 **Add to .pre-commit-config.yaml:**
 
 .. code-block:: yaml
@@ -336,7 +348,9 @@ The CLI tool integrates seamlessly with `pre-commit <https://pre-commit.com/>`_ 
           files: '\.(json|json5)$'
           args: ['-s', 'schemas/my-schema.json', '--ref-overrides', 'https://example.com/schema.json=./local/schema.json']
 
-**Note:** The hook runs in ``manual`` stage by default. Users define file patterns and all CLI arguments in their configuration.
+**Note:** The hook runs in ``manual`` stage by default. Users define file patterns and all CLI arguments in their configuration. The hook uses ``language: system``, which means the ``jsonschema-validator`` binary must be installed and available in ``$PATH``.
+
+**Examples and Troubleshooting:** See ``examples/pre-commit/`` directory for complete configuration examples, troubleshooting tips, and testing instructions.
 
 **Example workflows:**
 

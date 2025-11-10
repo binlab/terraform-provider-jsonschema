@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: jsonschema-validator-test
+        name: Test JSON Schema Validation
+        entry: jsonschema-validator
+        language: system
+        args:
+          - --schema
+          - examples/pre-commit/schema.json
+        files: ^examples/pre-commit/.*\.json$
+        exclude: schema\.json$
+        stages: [manual]

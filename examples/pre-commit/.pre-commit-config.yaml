@@ -1,0 +1,50 @@
+# Example pre-commit configuration for jsonschema-validator
+# This shows different ways to use the validator as a pre-commit hook
+
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.1.0  # Use the latest version from releases
+    hooks:
+      # Example 1: Validate with explicit schema path
+      - id: jsonschema-validator
+        name: Validate API requests
+        args:
+          - --schema
+          - schemas/api-request.schema.json
+        files: ^data/api-requests/.*\.json$
+
+      # Example 2: Validate multiple file patterns with the same schema
+      - id: jsonschema-validator
+        name: Validate user profiles
+        args:
+          - --schema
+          - schemas/user.schema.json
+        files: ^(data/users|tests/fixtures/users)/.*\.json$
+
+      # Example 3: Validate with config file (reads from .jsonschema-validator.yaml)
+      - id: jsonschema-validator
+        name: Validate with config file
+        files: ^data/.*\.json$
+        # No args - will use .jsonschema-validator.yaml or pyproject.toml
+
+      # Example 4: Validate with verbose output for debugging
+      - id: jsonschema-validator
+        name: Validate products (verbose)
+        args:
+          - --schema
+          - schemas/product.schema.json
+          - --verbose
+        files: ^data/products/.*\.json$
+
+# Note: The hook runs in 'manual' stage by default
+# Run with: pre-commit run jsonschema-validator --hook-stage manual --all-files
+# Or configure to run on commit:
+# repos:
+#   - repo: https://github.com/iilei/terraform-provider-jsonschema
+#     rev: v0.1.0
+#     hooks:
+#       - id: jsonschema-validator
+#         name: Validate JSON
+#         args: [--schema, schemas/my-schema.json]
+#         files: ^data/.*\.json$
+#         stages: [commit]  # Run on git commit
