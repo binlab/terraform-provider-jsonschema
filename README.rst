@@ -99,11 +99,6 @@ Install the ``jsonschema-validator`` CLI for use outside Terraform (Python, Node
 
 Download pre-built binaries from `GitHub Releases <https://github.com/iilei/terraform-provider-jsonschema/releases>`_
 
-**Via Homebrew** (coming soon):
-
-.. code-block:: bash
-
-  brew install iilei/tap/jsonschema-validator
 
 Quick Start
 ===========
