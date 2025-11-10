@@ -93,7 +93,7 @@ func TestDataSourceJsonschemaValidatorRead_NoDraftConfiguration(t *testing.T) {
 		"schema_version": {Type: schema.TypeString},
 		"error_message_template": {Type: schema.TypeString},
 		"ref_overrides": {Type: schema.TypeMap},
-		"validated": {Type: schema.TypeString},
+		"valid_json": {Type: schema.TypeString},
 	}, map[string]interface{}{
 		"document": docPath,
 		"schema":   schemaPath,
@@ -113,10 +113,10 @@ func TestDataSourceJsonschemaValidatorRead_NoDraftConfiguration(t *testing.T) {
 		t.Fatalf("Expected validation to succeed with Draft2020 fallback: %v", err)
 	}
 	
-	// Verify the document was validated
-	validated := d.Get("validated").(string)
-	if validated == "" {
-		t.Error("Expected validated field to be set")
+	// Verify the document was validated successfully
+	validJson := d.Get("valid_json").(string)
+	if validJson == "" {
+		t.Error("Expected valid_json field to be set")
 	}
 }
 
@@ -155,7 +155,7 @@ func TestDataSourceJsonschemaValidatorRead_DuplicateSchemaURL(t *testing.T) {
 		"schema_version": {Type: schema.TypeString},
 		"error_message_template": {Type: schema.TypeString},
 		"ref_overrides": {Type: schema.TypeMap},
-		"validated": {Type: schema.TypeString},
+		"valid_json": {Type: schema.TypeString},
 	}, map[string]interface{}{
 		"document": docPath,
 		"schema":   schemaPath,

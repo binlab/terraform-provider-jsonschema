@@ -189,6 +189,57 @@ func TestSchemaConfig_GetEffectiveErrorTemplate(t *testing.T) {
 	}
 }
 
+func TestSchemaConfig_GetEffectiveForceFiletype(t *testing.T) {
+	tests := []struct {
+		name              string
+		configForceType   string
+		flagForceType     string
+		want              string
+	}{
+		{
+			name:            "flag takes precedence",
+			configForceType: "json",
+			flagForceType:   "yaml",
+			want:            "yaml",
+		},
+		{
+			name:            "falls back to config",
+			configForceType: "json5",
+			flagForceType:   "",
+			want:            "json5",
+		},
+		{
+			name:            "both empty",
+			configForceType: "",
+			flagForceType:   "",
+			want:            "",
+		},
+		{
+			name:            "flag only",
+			configForceType: "",
+			flagForceType:   "toml",
+			want:            "toml",
+		},
+		{
+			name:            "config only",
+			configForceType: "yaml",
+			flagForceType:   "",
+			want:            "yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &SchemaConfig{
+				ForceFiletype: tt.configForceType,
+			}
+			if got := s.GetEffectiveForceFiletype(tt.flagForceType); got != tt.want {
+				t.Errorf("GetEffectiveForceFiletype() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMergeRefOverrides(t *testing.T) {
 	tests := []struct {
 		name    string

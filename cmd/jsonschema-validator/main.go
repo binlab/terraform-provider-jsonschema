@@ -54,7 +54,7 @@ func run() error {
 	pflag.StringVar(&forceFiletype, "force-filetype", "", "Force file type for documents (json, json5, yaml, toml). Auto-detected from extension if not set")
 
 	pflag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `jsonschema-validator - Validate JSON/JSON5 documents against JSON Schema
+		fmt.Fprintf(os.Stderr, `jsonschema-validator - Validate JSON/JSON5/YAML/TOML documents against JSON Schema
 
 Usage:
   jsonschema-validator [flags] [documents...]
@@ -64,14 +64,23 @@ Flags:
 		pflag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  # Validate a single document
-  jsonschema-validator -s schema.json document.json
+  # Validate a JSON document
+  jsonschema-validator -s schema.json config.json
+
+  # Validate a YAML document (auto-detected)
+  jsonschema-validator -s schema.json deployment.yaml
+
+  # Validate a TOML document (auto-detected)
+  jsonschema-validator -s schema.json config.toml
+
+  # Force file type override
+  jsonschema-validator -s schema.json --force-filetype yaml data.txt
 
   # Validate multiple documents
-  jsonschema-validator -s schema.json doc1.json doc2.json
+  jsonschema-validator -s schema.json doc1.json doc2.yaml doc3.toml
 
   # Use glob patterns
-  jsonschema-validator -s schema.json "*.json"
+  jsonschema-validator -s schema.json "configs/*.yaml"
 
   # Override remote $ref with local file
   jsonschema-validator -s schema.json -r https://example.com/schema.json=./local.json doc.json
@@ -262,9 +271,12 @@ func validateSchema(schemaConfig config.SchemaConfig, globalConfig *config.Confi
 	return nil
 }
 
-func validateDocument(docPath string, schema *jsonschema.Schema, schemaConfig config.SchemaConfig, globalConfig *config.Config, forceFiletype string) error {
+func validateDocument(docPath string, schema *jsonschema.Schema, schemaConfig config.SchemaConfig, globalConfig *config.Config, flagForceFiletype string) error {
+	// Get effective force_filetype: command-line flag > config file > auto-detect
+	effectiveForceFiletype := schemaConfig.GetEffectiveForceFiletype(flagForceFiletype)
+	
 	// Parse document file with optional forced file type
-	fileType := validator.FileType(forceFiletype)
+	fileType := validator.FileType(effectiveForceFiletype)
 	if fileType == "" {
 		fileType = validator.FileTypeAuto
 	}

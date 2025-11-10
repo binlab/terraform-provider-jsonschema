@@ -34,6 +34,12 @@ type SchemaConfig struct {
 	// Matches Terraform provider's "document" field (but allows multiple)
 	Documents []string `koanf:"documents" json:"documents" yaml:"documents" toml:"documents" mapstructure:"documents"`
 
+	// ForceFiletype overrides automatic file type detection for documents
+	// Matches Terraform provider's "force_filetype" field
+	// Valid values: "json", "json5", "yaml", "toml"
+	// Empty string means auto-detect from file extension
+	ForceFiletype string `koanf:"force_filetype" json:"forceFiletype" yaml:"force_filetype" toml:"force_filetype" mapstructure:"force_filetype"`
+
 	// RefOverrides maps remote $ref URLs to local file paths
 	// Matches Terraform provider's "ref_overrides" map
 	// Key: remote URL (e.g., "https://example.com/schema.json")
@@ -98,6 +104,15 @@ func (s *SchemaConfig) GetEffectiveErrorTemplate(globalTemplate string) string {
 		return s.ErrorTemplate
 	}
 	return globalTemplate
+}
+
+// GetEffectiveForceFiletype returns the force filetype to use
+// Priority: command-line flag > schema-level > empty (auto-detect)
+func (s *SchemaConfig) GetEffectiveForceFiletype(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	return s.ForceFiletype
 }
 
 // MergeRefOverrides merges multiple ref_override sources with priority

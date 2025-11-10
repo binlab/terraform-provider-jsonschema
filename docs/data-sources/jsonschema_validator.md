@@ -1,8 +1,48 @@
 # jsonschema_validator Data Source
 
-The `jsonschema_validator` data source validates JSON or JSON5 documents using [JSON Schema](https://json-schema.org/) specifications with enhanced error templating capabilities.
+The `jsonschema_validator` data source validates JSON, JSON5, YAML, and TOML documents using [JSON Schema](https://json-schema.org/) specifications with enhanced error templating capabilities.
 
-## ⚠️ Breaking Changes in Error Template Variables (v0.5.0)
+## ⚠️ Breaking Changes in v0.6.0
+
+### File Path API (Major Breaking Change)
+
+**The `document` field now expects a file path instead of raw content.**
+
+| Aspect | Old (v0.5.x) | New (v0.6.0+) |
+|--------|--------------|---------------|
+| `document` field | Raw content via `file()` function | File path (string) |
+| Supported formats | JSON, JSON5 | JSON, JSON5, YAML, TOML |
+| Format detection | N/A | Auto-detect from extension |
+| Output field | `validated` | `valid_json` |
+
+**Migration Required:**
+
+```hcl
+# Before (v0.5.x)
+data "jsonschema_validator" "config" {
+  document = file("${path.module}/config.json")  # ❌ Remove file() wrapper
+  schema   = "${path.module}/config.schema.json"
+}
+
+# After (v0.6.0+)
+data "jsonschema_validator" "config" {
+  document = "${path.module}/config.json"  # ✅ Direct file path
+  schema   = "${path.module}/config.schema.json"
+}
+
+# Access validated output
+locals {
+  config = jsondecode(data.jsonschema_validator.config.valid_json)  # ✅ Renamed from 'validated'
+}
+```
+
+### New Features in v0.6.0
+
+- ✅ **Multi-format support**: Validate YAML and TOML documents against JSON Schema
+- ✅ **Auto-detection**: Format determined from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`)
+- ✅ **Force override**: Optional `force_filetype` field to override detection
+- ✅ **Cleaner API**: No more `file()` wrapper needed
+- ✅ **Better output**: `valid_json` clearly indicates JSON format output
 
 **Template variable names have been clarified for better understanding:**
 
@@ -57,20 +97,58 @@ data "jsonschema_validator" "example" {
 
 ## Example Usage
 
-### Basic Validation
+### Basic Validation (JSON)
 
 ```hcl-terraform
 data "jsonschema_validator" "config" {
-  document = file("${path.module}/config.json")
+  document = "${path.module}/config.json"
   schema   = "${path.module}/config.schema.json"
+}
+
+# Access validated document as Terraform object
+locals {
+  config = jsondecode(data.jsonschema_validator.config.valid_json)
+  app_name = local.config.application.name
 }
 ```
 
-### JSON5 Document and Schema
+### YAML Document Validation
 
 ```hcl-terraform
-data "jsonschema_validator" "json5_example" {
-  document = <<-EOT
+data "jsonschema_validator" "k8s_manifest" {
+  document = "${path.module}/deployment.yaml"
+  schema   = "${path.module}/k8s-schema.json"
+}
+
+# YAML is automatically detected from .yaml/.yml extension
+locals {
+  deployment = jsondecode(data.jsonschema_validator.k8s_manifest.valid_json)
+  replicas   = local.deployment.spec.replicas
+}
+```
+
+### TOML Configuration Validation
+
+```hcl-terraform
+data "jsonschema_validator" "app_config" {
+  document = "${path.module}/config.toml"
+  schema   = "${path.module}/config-schema.json"
+}
+
+# TOML is automatically detected from .toml extension
+locals {
+  config = jsondecode(data.jsonschema_validator.app_config.valid_json)
+  port   = local.config.server.port
+}
+```
+
+### JSON5 Document
+
+```hcl-terraform
+# Create a JSON5 document file (supports comments, trailing commas, unquoted keys)
+resource "local_file" "json5_config" {
+  filename = "${path.module}/config.json5"
+  content  = <<-EOT
     {
       // JSON5 comments are supported
       "name": "example-service",
@@ -81,7 +159,36 @@ data "jsonschema_validator" "json5_example" {
       }
     }
   EOT
-  schema = "${path.module}/service.schema.json5"
+}
+
+data "jsonschema_validator" "json5_example" {
+  document = local_file.json5_config.filename
+  schema   = "${path.module}/config.schema.json"
+}
+```
+
+### Force File Type Override
+
+```hcl-terraform
+# Validate a .txt file containing JSON
+data "jsonschema_validator" "json_in_txt" {
+  document       = "${path.module}/data.txt"
+  schema         = "${path.module}/schema.json"
+  force_filetype = "json"  # Override auto-detection
+}
+
+# Validate a file without extension
+data "jsonschema_validator" "no_extension" {
+  document       = "${path.module}/config"
+  schema         = "${path.module}/schema.json"
+  force_filetype = "yaml"  # Explicitly specify YAML
+}
+
+# Force JSON5 parsing for better error messages (trailing commas, comments, etc.)
+data "jsonschema_validator" "relaxed_json" {
+  document       = "${path.module}/config.json"
+  schema         = "${path.module}/schema.json"
+  force_filetype = "json5"  # Use JSON5 parser for relaxed syntax
 }
 ```
 
@@ -89,7 +196,7 @@ data "jsonschema_validator" "json5_example" {
 
 ```hcl-terraform
 data "jsonschema_validator" "legacy_validation" {
-  document       = file("legacy-data.json")
+  document       = "${path.module}/legacy-data.json"
   schema         = "${path.module}/legacy.schema.json"
   schema_version = "draft-04"  # Override provider default
 }
@@ -110,7 +217,7 @@ data "jsonschema_validator" "with_refs" {
 ```hcl-terraform
 # Redirect remote schema URLs to local files for offline validation
 data "jsonschema_validator" "with_remote_refs" {
-  document = file("api-request.json")
+  document = "${path.module}/api-request.json"
   schema   = "${path.module}/schemas/api-request.schema.json"
   
   # Map remote URLs to local files
@@ -128,29 +235,29 @@ data "jsonschema_validator" "with_remote_refs" {
 ```hcl-terraform
 # Default full message
 data "jsonschema_validator" "default_errors" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.json"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = "{{.FullMessage}}"
 }
 
 # Individual error iteration
 data "jsonschema_validator" "individual_errors" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.yaml"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = "{{range .Errors}}{{.DocumentPath}}: {{.Message}}\n{{end}}"
 }
 
 # Custom format with error count
 data "jsonschema_validator" "counted_errors" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.toml"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = "Found {{.ErrorCount}} errors:\n{{range .Errors}}• {{.DocumentPath}}: {{.Message}}\n{{end}}"
 }
 
 # CI/CD integration format
 data "jsonschema_validator" "ci_errors" {
-  document = file("deployment.json")
-  schema   = "deployment.schema.json"
+  document = "${path.module}/deployment.yaml"
+  schema   = "${path.module}/deployment.schema.json"
   error_message_template = "{{range .Errors}}::error file={{$.SchemaFile}}::{{.Message}}{{if .DocumentPath}} at {{.DocumentPath}}{{end}}\n{{end}}"
 }
 ```
@@ -160,8 +267,8 @@ data "jsonschema_validator" "ci_errors" {
 ```hcl-terraform
 # Detailed format with schema information
 data "jsonschema_validator" "detailed_format" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.json"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = <<-EOT
     Schema: {{.SchemaFile}}
     Errors: {{.ErrorCount}}
@@ -172,8 +279,8 @@ data "jsonschema_validator" "detailed_format" {
 
 # JSON format for structured logging
 data "jsonschema_validator" "json_format" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.yaml"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = jsonencode({
     "validation_failed": true,
     "schema": "{{.SchemaFile}}",
@@ -185,15 +292,35 @@ data "jsonschema_validator" "json_format" {
 
 ## Argument Reference
 
-* `document` (Required) - JSON or JSON5 document content to validate.
-* `schema` (Required) - Path to JSON or JSON5 schema file.
+* `document` (Required) - **Path to document file** to validate. Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`).
+* `schema` (Required) - Path to JSON or JSON5 schema file. Format auto-detected from extension.
+* `force_filetype` (Optional) - Override automatic file type detection for the document. Valid values: `"json"`, `"json5"`, `"yaml"`, `"toml"`. Use when file extension doesn't match content format (e.g., `.txt` file containing YAML).
 * `schema_version` (Optional) - Schema version override (`"draft-04"` to `"draft/2020-12"`).
 * `error_message_template` (Optional) - Custom Go template for error messages. Available variables: `{{.SchemaFile}}`, `{{.Document}}`, `{{.FullMessage}}`, `{{.Errors}}`, `{{.ErrorCount}}`.
 * `ref_overrides` (Optional) - Map of remote schema URLs to local file paths. Redirects `$ref` references from remote URLs to local files, enabling offline validation.
 
 ## Attributes Reference
 
-* `validated` - The validated document in canonical JSON format. This is the `document` content parsed, validated, and re-serialized as standard JSON (even if the input was JSON5).
+* `valid_json` - The validated document in canonical JSON format. Only set when validation succeeds. Contains the document parsed, validated, and re-serialized as standard JSON with resolved `$ref` references. Use `jsondecode()` to access as Terraform objects.
+
+## File Format Support
+
+The provider automatically detects document format from file extension:
+
+| Extension | Format | Parser |
+|-----------|--------|--------|
+| `.json` | JSON | JSON5 (backward compatible) |
+| `.json5` | JSON5 | JSON5 (comments, trailing commas, unquoted keys) |
+| `.yaml`, `.yml` | YAML | YAML 1.2 (superset of JSON) |
+| `.toml` | TOML | TOML v1.0.0 |
+| Other | JSON5 | Fallback to JSON5 for unknown extensions |
+
+**Format Override**: Use `force_filetype` to override detection when:
+- File has no extension or wrong extension
+- You want to use JSON5 parser for relaxed JSON syntax
+- Testing different format parsers
+
+**Schema Format**: Schemas are always JSON/JSON5 and auto-detected from extension. YAML/TOML are converted to JSON internally before validation.
 
 ## Schema File Resolution
 
@@ -250,8 +377,13 @@ The `$ref` will resolve to the local file instead of attempting to fetch from th
 For a complete example, see `examples/ref_overrides/` in the provider repository.
 
 ## JSON5 Features Supported
+## Document Format Support
 
-Both `document` content and schema files support JSON5 syntax:
+Documents and schemas support multiple formats:
+
+### JSON5 Features
+
+Both document and schema files with `.json` or `.json5` extensions support:
 
 - **Comments**: `// single-line` and `/* multi-line */` comments
 - **Trailing commas**: Arrays and objects can have trailing commas
@@ -259,6 +391,26 @@ Both `document` content and schema files support JSON5 syntax:
 - **Single quotes**: Strings can use single quotes
 - **Multi-line strings**: Strings can span multiple lines
 - **Numeric literals**: Hexadecimal numbers, leading/trailing decimal points, numeric separators
+
+### YAML Features
+
+YAML documents (`.yaml`, `.yml`) support all YAML 1.2 features:
+
+- **Comments**: `# comment syntax`
+- **Anchors and aliases**: `&anchor` and `*alias` for reference reuse
+- **Multi-line strings**: Block scalars (`|` and `>`)
+- **Native types**: Booleans, numbers, null, dates
+- **Superset of JSON**: All JSON documents are valid YAML
+
+### TOML Features
+
+TOML documents (`.toml`) support all TOML v1.0.0 features:
+
+- **Comments**: `# comment syntax`
+- **Tables**: `[section]` for configuration sections
+- **Inline tables**: `{key = "value", another = 123}`
+- **Arrays**: `items = ["one", "two", "three"]`
+- **Dates and times**: Native datetime support
 
 ## Error Templating
 
