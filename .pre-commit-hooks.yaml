@@ -6,6 +6,18 @@
   pass_filenames: true
   stages: [manual]
   files: ''
-  additional_dependencies: []
+  additional_dependencies: ['github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator']
+  minimum_pre_commit_version: '2.9.0'
+  require_serial: false
+
+- id: jsonschema-validator-env
+  name: JSON Schema Validator (env-based for testing)
+  description: Validate JSON/JSON5 using JSONSCHEMA_VALIDATOR_SCHEMA env var
+  entry: jsonschema-validator
+  language: golang
+  pass_filenames: true
+  stages: [manual]
+  files: ''
+  additional_dependencies: ['github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator']
   minimum_pre_commit_version: '2.9.0'
   require_serial: false
