@@ -121,13 +121,14 @@ func TestLoader_LoadFromJSONFile(t *testing.T) {
 	tempDir := t.TempDir()
 	configFile := filepath.Join(tempDir, "config.json")
 
+	// JSON configs now use snake_case for consistency with YAML/TOML
 	configContent := `{
-  "schemaVersion": "draft/2020-12",
+  "schema_version": "draft/2020-12",
   "schemas": [
     {
       "path": "test.schema.json",
       "documents": ["test.json"],
-      "refOverrides": {
+      "ref_overrides": {
         "https://example.com/user.json": "./local/user.json"
       }
     }
@@ -230,50 +231,6 @@ documents = ["test.json"]
 	}
 }
 
-func TestLoader_LoadPackageJSON(t *testing.T) {
-	// Save current directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(origDir)
-
-	// Create temp directory and change to it
-	tempDir := t.TempDir()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create package.json
-	configContent := `{
-  "name": "test-project",
-  "jsonschema-validator": {
-    "schemaVersion": "draft/2020-12",
-    "schemas": [
-      {
-        "path": "test.schema.json",
-        "documents": ["test.json"]
-      }
-    ]
-  }
-}`
-
-	if err := os.WriteFile("package.json", []byte(configContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Load should find the package.json config
-	loader := NewLoader()
-	cfg, err := loader.Load(nil)
-	if err != nil {
-		t.Fatalf("Load() failed: %v", err)
-	}
-
-	if cfg.SchemaVersion != "draft/2020-12" {
-		t.Errorf("schema_version = %q, want %q", cfg.SchemaVersion, "draft/2020-12")
-	}
-}
-
 func TestLoader_LoadEnvVars(t *testing.T) {
 	// Set environment variables
 	os.Setenv("JSONSCHEMA_VALIDATOR_SCHEMA_VERSION", "draft/2019-09")
@@ -287,6 +244,47 @@ func TestLoader_LoadEnvVars(t *testing.T) {
 
 	if cfg.SchemaVersion != "draft/2019-09" {
 		t.Errorf("schema_version = %q, want %q", cfg.SchemaVersion, "draft/2019-09")
+	}
+}
+
+func TestLoader_CustomEnvPrefix(t *testing.T) {
+	// Set environment variables with custom prefix
+	os.Setenv("MY_APP_SCHEMA_VERSION", "draft/2020-12")
+	os.Setenv("MY_APP_ERROR_TEMPLATE", "Custom: {{.FullMessage}}")
+	defer os.Unsetenv("MY_APP_SCHEMA_VERSION")
+	defer os.Unsetenv("MY_APP_ERROR_TEMPLATE")
+
+	loader := NewLoader()
+	loader.SetEnvPrefix("MY_APP_")
+	
+	cfg, err := loader.Load(nil)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if cfg.SchemaVersion != "draft/2020-12" {
+		t.Errorf("schema_version = %q, want %q", cfg.SchemaVersion, "draft/2020-12")
+	}
+	
+	if cfg.ErrorTemplate != "Custom: {{.FullMessage}}" {
+		t.Errorf("error_template = %q, want %q", cfg.ErrorTemplate, "Custom: {{.FullMessage}}")
+	}
+	
+	// Verify default prefix doesn't work
+	os.Setenv("JSONSCHEMA_VALIDATOR_SCHEMA_VERSION", "draft/2019-09")
+	defer os.Unsetenv("JSONSCHEMA_VALIDATOR_SCHEMA_VERSION")
+	
+	loader2 := NewLoader()
+	loader2.SetEnvPrefix("MY_APP_")
+	
+	cfg2, err := loader2.Load(nil)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+	
+	// Should still use MY_APP_ prefix, not JSONSCHEMA_VALIDATOR_
+	if cfg2.SchemaVersion != "draft/2020-12" {
+		t.Errorf("schema_version = %q, want %q (should ignore JSONSCHEMA_VALIDATOR_ prefix)", cfg2.SchemaVersion, "draft/2020-12")
 	}
 }
 

@@ -26,47 +26,37 @@ var unmarshalConf = koanf.UnmarshalConf{
 
 // Loader handles configuration loading from multiple sources
 type Loader struct {
-	k *koanf.Koanf
+	k         *koanf.Koanf
+	envPrefix string
 }
 
-// NewLoader creates a new configuration loader
+// NewLoader creates a new configuration loader with default environment prefix
 func NewLoader() *Loader {
 	return &Loader{
-		k: koanf.New("."),
+		k:         koanf.New("."),
+		envPrefix: "JSONSCHEMA_VALIDATOR_",
 	}
+}
+
+// SetEnvPrefix sets a custom environment variable prefix
+// The prefix should end with an underscore (e.g., "MY_APP_")
+func (l *Loader) SetEnvPrefix(prefix string) {
+	l.envPrefix = prefix
 }
 
 // Load loads configuration from all available sources in priority order:
 // 1. Command-line flags (highest priority)
-// 2. Environment variables (JSONSCHEMA_VALIDATOR_*)
+// 2. Environment variables (customizable prefix, default: JSONSCHEMA_VALIDATOR_*)
 // 3. .jsonschema-validator.yaml in current directory
 // 4. pyproject.toml section [tool.jsonschema-validator]
-// 5. package.json field "jsonschema-validator"
-// 6. ~/.jsonschema-validator.yaml in user home
-// 7. Default values (lowest priority)
+// 5. Default values (lowest priority)
 func (l *Loader) Load(flags *flag.FlagSet) (*Config, error) {
 	// 1. Load defaults (lowest priority)
 	if err := l.loadDefaults(); err != nil {
 		return nil, fmt.Errorf("loading defaults: %w", err)
 	}
 
-	// 2. Load from user home config (if exists)
-	if err := l.loadUserConfig(); err != nil {
-		// User config is optional, don't fail if not found
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("loading user config: %w", err)
-		}
-	}
-
-	// 3. Load from package.json (if exists)
-	if err := l.loadPackageJSON(); err != nil {
-		// Optional, don't fail if not found
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("loading package.json config: %w", err)
-		}
-	}
-
-	// 4. Load from pyproject.toml (if exists)
+	// 2. Load from pyproject.toml (if exists)
 	if err := l.loadPyprojectTOML(); err != nil {
 		// Optional, don't fail if not found
 		if !os.IsNotExist(err) {
@@ -74,7 +64,7 @@ func (l *Loader) Load(flags *flag.FlagSet) (*Config, error) {
 		}
 	}
 
-	// 5. Load from .jsonschema-validator.yaml (if exists)
+	// 3. Load from .jsonschema-validator.yaml (if exists)
 	if err := l.loadProjectConfig(); err != nil {
 		// Optional, don't fail if not found
 		if !os.IsNotExist(err) {
@@ -82,12 +72,12 @@ func (l *Loader) Load(flags *flag.FlagSet) (*Config, error) {
 		}
 	}
 
-	// 6. Load from environment variables
+	// 4. Load from environment variables
 	if err := l.loadEnvVars(); err != nil {
 		return nil, fmt.Errorf("loading environment variables: %w", err)
 	}
 
-	// 7. Load from command-line flags (highest priority)
+	// 5. Load from command-line flags (highest priority)
 	if flags != nil {
 		if err := l.loadFlags(flags); err != nil {
 			return nil, fmt.Errorf("loading flags: %w", err)
@@ -115,26 +105,16 @@ func (l *Loader) LoadFromFile(path string) (*Config, error) {
 
 	switch ext {
 	case ".yaml", ".yml":
-		// YAML uses snake_case (same as Terraform)
 		if err := l.k.Load(file.Provider(path), yaml.Parser()); err != nil {
 			return nil, fmt.Errorf("loading config file %q: %w", path, err)
 		}
 	case ".toml":
-		// TOML uses snake_case (same as Terraform)
 		if err := l.k.Load(file.Provider(path), toml.Parser()); err != nil {
 			return nil, fmt.Errorf("loading config file %q: %w", path, err)
 		}
 	case ".json":
-		// JSON uses camelCase (package.json convention)
-		// Need to normalize keys to snake_case
-		tempK := koanf.New(".")
-		if err := tempK.Load(file.Provider(path), json.Parser()); err != nil {
+		if err := l.k.Load(file.Provider(path), json.Parser()); err != nil {
 			return nil, fmt.Errorf("loading config file %q: %w", path, err)
-		}
-		// Convert camelCase to snake_case
-		normalized := normalizeKeys(tempK.Raw())
-		if err := l.k.Load(confmap.Provider(normalized, "."), nil); err != nil {
-			return nil, fmt.Errorf("loading normalized config: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported config file format: %s", ext)
@@ -158,21 +138,6 @@ func (l *Loader) loadDefaults() error {
 	}
 
 	return l.k.Load(confmap.Provider(defaults, "."), nil)
-}
-
-// loadUserConfig loads configuration from ~/.jsonschema-validator.yaml
-func (l *Loader) loadUserConfig() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	configPath := filepath.Join(home, ".jsonschema-validator.yaml")
-	if _, err := os.Stat(configPath); err != nil {
-		return err
-	}
-
-	return l.k.Load(file.Provider(configPath), yaml.Parser())
 }
 
 // loadProjectConfig loads configuration from .jsonschema-validator.yaml in current directory
@@ -221,94 +186,17 @@ func (l *Loader) loadPyprojectTOML() error {
 	return l.k.Merge(toolConfig)
 }
 
-// loadPackageJSON loads configuration from package.json "jsonschema-validator" field
-func (l *Loader) loadPackageJSON() error {
-	const configFile = "package.json"
-
-	if _, err := os.Stat(configFile); err != nil {
-		return err
-	}
-
-	// Load the entire JSON file
-	tempK := koanf.New(".")
-	if err := tempK.Load(file.Provider(configFile), json.Parser()); err != nil {
-		return err
-	}
-
-	// Extract only the "jsonschema-validator" field
-	jsConfig := tempK.Cut("jsonschema-validator")
-	if jsConfig == nil || jsConfig.Raw() == nil {
-		// No jsonschema-validator field found
-		return os.ErrNotExist
-	}
-
-	// Convert camelCase keys to snake_case for consistency
-	normalized := normalizeKeys(jsConfig.Raw())
-	
-	// Load normalized config
-	return l.k.Load(confmap.Provider(normalized, "."), nil)
-}
-
-// normalizeKeys recursively converts camelCase keys to snake_case
-func normalizeKeys(data interface{}) map[string]interface{} {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{})
-		for key, value := range v {
-			snakeKey := camelToSnake(key)
-			result[snakeKey] = normalizeValue(value)
-		}
-		return result
-	default:
-		// If not a map, return empty map
-		return make(map[string]interface{})
-	}
-}
-
-// normalizeValue recursively processes values
-func normalizeValue(value interface{}) interface{} {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{})
-		for key, val := range v {
-			snakeKey := camelToSnake(key)
-			result[snakeKey] = normalizeValue(val)
-		}
-		return result
-	case []interface{}:
-		result := make([]interface{}, len(v))
-		for i, val := range v {
-			result[i] = normalizeValue(val)
-		}
-		return result
-	default:
-		return v
-	}
-}
-
-// camelToSnake converts camelCase to snake_case
-func camelToSnake(s string) string {
-	var result strings.Builder
-	for i, r := range s {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result.WriteRune('_')
-		}
-		result.WriteRune(r)
-	}
-	return strings.ToLower(result.String())
-}
-
 // loadEnvVars loads configuration from environment variables
 // Environment variables use SCREAMING_SNAKE_CASE (no camelCase!)
-// Prefixed with JSONSCHEMA_VALIDATOR_
-// Examples:
+// Prefixed with the configured prefix (default: JSONSCHEMA_VALIDATOR_)
+// Examples (with default prefix):
 //   JSONSCHEMA_VALIDATOR_SCHEMA_VERSION=draft/2020-12
 //   JSONSCHEMA_VALIDATOR_ERROR_TEMPLATE="..."
 func (l *Loader) loadEnvVars() error {
-	return l.k.Load(env.Provider("JSONSCHEMA_VALIDATOR_", ".", func(s string) string {
+	return l.k.Load(env.Provider(l.envPrefix, ".", func(s string) string {
 		// Convert JSONSCHEMA_VALIDATOR_SCHEMA_VERSION to schema_version
 		// Just remove prefix and lowercase - underscores stay as-is
-		s = strings.TrimPrefix(s, "JSONSCHEMA_VALIDATOR_")
+		s = strings.TrimPrefix(s, l.envPrefix)
 		s = strings.ToLower(s)
 		return s
 	}), nil)

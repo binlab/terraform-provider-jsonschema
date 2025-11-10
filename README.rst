@@ -192,7 +192,7 @@ The ``jsonschema-validator`` CLI tool provides the same validation capabilities 
 
 - ✅ **JSON5 Support** - Only JSON Schema validator with native JSON5 support
 - ✅ **Zero-config** - Works without configuration files for simple cases
-- ✅ **Project config** - Discovers ``.jsonschema-validator.yaml``, ``pyproject.toml``, or ``package.json``
+- ✅ **Project config** - Discovers ``.jsonschema-validator.yaml`` or ``pyproject.toml``
 - ✅ **Pre-commit integration** - Native support for pre-commit hooks
 - ✅ **Batch validation** - Validate multiple files in one command
 - ✅ **CI/CD ready** - Proper exit codes for automation
@@ -206,8 +206,6 @@ The CLI automatically discovers configuration from multiple sources (in priority
 2. **Environment variables** (``JSONSCHEMA_VALIDATOR_*``)
 3. ``.jsonschema-validator.yaml`` in current directory
 4. ``pyproject.toml`` section ``[tool.jsonschema-validator]``
-5. ``package.json`` field ``"jsonschema-validator"``
-6. User home ``~/.jsonschema-validator.yaml``
 
 Configuration File Format
 -------------------------
@@ -255,23 +253,6 @@ Configuration File Format
   
   [tool.jsonschema-validator.schemas.ref_overrides]
   "https://example.com/user.json" = "./schemas/user.json"
-
-**package.json** (for Node.js projects):
-
-.. code-block:: json
-
-  {
-    "name": "my-project",
-    "jsonschema-validator": {
-      "schemaVersion": "draft/2020-12",
-      "schemas": [
-        {
-          "path": "config.schema.json",
-          "documents": ["config.json"]
-        }
-      ]
-    }
-  }
 
 CLI Usage Examples
 ------------------
@@ -332,6 +313,11 @@ CLI Usage Examples
   export JSONSCHEMA_VALIDATOR_SCHEMA_VERSION="draft/2020-12"
   export JSONSCHEMA_VALIDATOR_SCHEMA="config.schema.json"
   jsonschema-validator config.json
+  
+  # Use custom environment variable prefix
+  export MY_APP_SCHEMA_VERSION="draft/2020-12"
+  export MY_APP_SCHEMA="config.schema.json"
+  jsonschema-validator --env-prefix MY_APP_ config.json
 
 Pre-commit Hook Integration
 ----------------------------
@@ -365,18 +351,6 @@ Python project with ``pyproject.toml``:
       hooks:
         - id: jsonschema-validator
           # Automatically reads [tool.jsonschema-validator] from pyproject.toml
-
-Node.js project with ``package.json``:
-
-.. code-block:: yaml
-
-  # .pre-commit-config.yaml  
-  repos:
-    - repo: https://github.com/iilei/terraform-provider-jsonschema
-      rev: v0.5.0
-      hooks:
-        - id: jsonschema-validator
-          # Automatically reads "jsonschema-validator" from package.json
 
 Multi-language project with explicit config:
 
