@@ -1,0 +1,28 @@
+# Example pyproject.toml configuration for Python projects
+
+[project]
+name = "my-python-project"
+version = "1.0.0"
+
+# jsonschema-validator configuration
+[tool.jsonschema-validator]
+schema_version = "draft/2020-12"
+
+# Simple configuration validation
+[[tool.jsonschema-validator.schemas]]
+path = "config.schema.json"
+documents = ["config.json", "config.*.json"]
+
+# API request validation with reference overrides
+[[tool.jsonschema-validator.schemas]]
+path = "api/request.schema.json"
+documents = ["api/requests/*.json"]
+
+[tool.jsonschema-validator.schemas.ref_overrides]
+"https://example.com/user.json" = "./schemas/user.json"
+"https://example.com/product.json" = "./schemas/product.json"
+
+# JSON5 support
+[[tool.jsonschema-validator.schemas]]
+path = "app.schema.json5"
+documents = ["app.json5"]

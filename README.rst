@@ -36,6 +36,9 @@ See the `full documentation <docs/index.md>`_ for detailed usage, advanced featu
 Installation
 ============
 
+Terraform Provider
+------------------
+
 On |terraform|_ versions 0.13+ use:
 
 .. code-block:: terraform
@@ -51,8 +54,32 @@ On |terraform|_ versions 0.13+ use:
 
 For |terraform|_ versions 0.12 or lower, see |terraform-install-plugin|_.
 
+Standalone CLI Tool
+-------------------
+
+Install the ``jsonschema-validator`` CLI for use outside Terraform (Python, Node.js, or any project):
+
+**Via Go:**
+
+.. code-block:: bash
+
+  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+
+**Via Release Binary:**
+
+Download pre-built binaries from `GitHub Releases <https://github.com/iilei/terraform-provider-jsonschema/releases>`_
+
+**Via Homebrew** (coming soon):
+
+.. code-block:: bash
+
+  brew install iilei/tap/jsonschema-validator
+
 Quick Start
 ===========
+
+Terraform Provider
+------------------
 
 .. code-block:: terraform
 
@@ -69,6 +96,23 @@ Quick Start
   output "validated_config" {
     value = data.jsonschema_validator.config.validated
   }
+
+Standalone CLI
+--------------
+
+.. code-block:: bash
+
+  # Validate a single file
+  jsonschema-validator --schema config.schema.json config.json
+
+  # Validate multiple files
+  jsonschema-validator --schema api.schema.json request1.json request2.json
+
+  # With JSON5 support
+  jsonschema-validator --schema app.schema.json5 app.json5
+
+  # Use configuration file (zero-config mode)
+  jsonschema-validator  # Reads .jsonschema-validator.yaml
 
 Documentation
 =============
@@ -138,6 +182,291 @@ Customize error output with Go templates:
 Available template variables: ``{{.FullMessage}}``, ``{{.ErrorCount}}``, ``{{.Errors}}``, ``{{.SchemaFile}}``, ``{{.Document}}``
 
 See the `full documentation <docs/index.md>`_ for advanced templating examples.
+
+CLI Tool (Pre-commit Hook)
+===========================
+
+The ``jsonschema-validator`` CLI tool provides the same validation capabilities as the Terraform provider, but as a standalone binary for use in **any project type** (Python, Node.js, Go, etc.).
+
+**Unique Features:**
+
+- ✅ **JSON5 Support** - Only JSON Schema validator with native JSON5 support
+- ✅ **Zero-config** - Works without configuration files for simple cases
+- ✅ **Project config** - Discovers ``.jsonschema-validator.yaml``, ``pyproject.toml``, or ``package.json``
+- ✅ **Pre-commit integration** - Native support for pre-commit hooks
+- ✅ **Batch validation** - Validate multiple files in one command
+- ✅ **CI/CD ready** - Proper exit codes for automation
+
+Configuration Discovery
+-----------------------
+
+The CLI automatically discovers configuration from multiple sources (in priority order):
+
+1. **Command-line flags** (highest priority)
+2. **Environment variables** (``JSONSCHEMA_VALIDATOR_*``)
+3. ``.jsonschema-validator.yaml`` in current directory
+4. ``pyproject.toml`` section ``[tool.jsonschema-validator]``
+5. ``package.json`` field ``"jsonschema-validator"``
+6. User home ``~/.jsonschema-validator.yaml``
+
+Configuration File Format
+-------------------------
+
+**.jsonschema-validator.yaml** (recommended):
+
+.. code-block:: yaml
+
+  # Default schema version (same as Terraform provider)
+  schema_version: "draft/2020-12"
+  
+  # Multiple schema-document mappings
+  schemas:
+    - path: "config.schema.json"
+      documents:
+        - "config.json"
+        - "config.*.json"
+    
+    - path: "api/schemas/request.schema.json"
+      documents: 
+        - "api/requests/*.json"
+      ref_overrides:
+        "https://example.com/user.json": "./schemas/user.json"
+  
+  # Custom error template (same as Terraform provider)
+  error_template: |
+    {{range .Errors}}
+    {{.DocumentPath}}: {{.Message}}
+    {{end}}
+
+**pyproject.toml** (for Python projects):
+
+.. code-block:: toml
+
+  [tool.jsonschema-validator]
+  schema_version = "draft/2020-12"
+  
+  [[tool.jsonschema-validator.schemas]]
+  path = "config.schema.json"
+  documents = ["config.json"]
+  
+  [[tool.jsonschema-validator.schemas]]
+  path = "api/request.schema.json"
+  documents = ["api/requests/*.json"]
+  
+  [tool.jsonschema-validator.schemas.ref_overrides]
+  "https://example.com/user.json" = "./schemas/user.json"
+
+**package.json** (for Node.js projects):
+
+.. code-block:: json
+
+  {
+    "name": "my-project",
+    "jsonschema-validator": {
+      "schemaVersion": "draft/2020-12",
+      "schemas": [
+        {
+          "path": "config.schema.json",
+          "documents": ["config.json"]
+        }
+      ]
+    }
+  }
+
+CLI Usage Examples
+------------------
+
+**Basic validation:**
+
+.. code-block:: bash
+
+  # Single file
+  jsonschema-validator --schema config.schema.json config.json
+  
+  # Multiple files
+  jsonschema-validator --schema api.schema.json req1.json req2.json
+  
+  # JSON5 support
+  jsonschema-validator --schema app.schema.json5 app.json5
+
+**With configuration file:**
+
+.. code-block:: bash
+
+  # Uses .jsonschema-validator.yaml automatically
+  jsonschema-validator
+  
+  # Explicit config file
+  jsonschema-validator --config custom-config.yaml
+  
+  # Override schema version from config
+  jsonschema-validator --schema-version draft/2019-09
+
+**Advanced options (matching Terraform provider):**
+
+.. code-block:: bash
+
+  # Specify schema draft version
+  jsonschema-validator --schema-version "draft/2020-12" \
+    --schema config.schema.json config.json
+  
+  # Reference overrides (for offline validation)
+  jsonschema-validator \
+    --schema api.schema.json \
+    --ref-override "https://example.com/user.json=./local/user.json" \
+    request.json
+  
+  # Custom error template
+  jsonschema-validator \
+    --schema config.schema.json \
+    --error-template '{{range .Errors}}{{.DocumentPath}}: {{.Message}}{{end}}' \
+    config.json
+  
+  # Validate from stdin
+  cat config.json | jsonschema-validator --schema config.schema.json -
+
+**Environment variables:**
+
+.. code-block:: bash
+
+  export JSONSCHEMA_VALIDATOR_SCHEMA_VERSION="draft/2020-12"
+  export JSONSCHEMA_VALIDATOR_SCHEMA="config.schema.json"
+  jsonschema-validator config.json
+
+Pre-commit Hook Integration
+----------------------------
+
+**Status:** Implementation checklist
+
+.. code-block:: text
+
+  Pre-commit Hook Features:
+  
+  ☐ Configuration discovery from .jsonschema-validator.yaml
+  ☐ Configuration discovery from pyproject.toml [tool.jsonschema-validator]
+  ☐ Configuration discovery from package.json "jsonschema-validator"
+  ☐ Environment variable support (JSONSCHEMA_VALIDATOR_*)
+  ☐ Command-line flag parsing (matching Terraform provider options)
+  ☐ JSON5 document validation
+  ☐ JSON5 schema validation
+  ☐ Schema version selection (draft 4/6/7/2019-09/2020-12)
+  ☐ Reference override support (ref_overrides)
+  ☐ Custom error message templates
+  ☐ Batch file validation (multiple documents per schema)
+  ☐ Glob pattern support for document paths
+  ☐ Exit codes (0=success, 1=validation error, 2=usage error)
+  ☐ Colored output for TTY
+  ☐ JSON output format (--format json)
+  ☐ Quiet mode (--quiet)
+  ☐ Verbose mode (--verbose)
+  ☐ Stdin support (validate from pipe)
+  ☐ Pre-commit hooks.yaml configuration
+  ☐ GitHub Actions integration example
+  ☐ GitLab CI integration example
+
+Add to ``.pre-commit-config.yaml``:
+
+.. code-block:: yaml
+
+  repos:
+    - repo: https://github.com/iilei/terraform-provider-jsonschema
+      rev: v0.5.0
+      hooks:
+        - id: jsonschema-validator
+          # Uses .jsonschema-validator.yaml automatically
+          # Or override with args:
+          args: ['--schema', 'config.schema.json']
+          files: '^config\.json$'
+
+**Example workflows:**
+
+Python project with ``pyproject.toml``:
+
+.. code-block:: yaml
+
+  # .pre-commit-config.yaml
+  repos:
+    - repo: https://github.com/iilei/terraform-provider-jsonschema
+      rev: v0.5.0
+      hooks:
+        - id: jsonschema-validator
+          # Automatically reads [tool.jsonschema-validator] from pyproject.toml
+
+Node.js project with ``package.json``:
+
+.. code-block:: yaml
+
+  # .pre-commit-config.yaml  
+  repos:
+    - repo: https://github.com/iilei/terraform-provider-jsonschema
+      rev: v0.5.0
+      hooks:
+        - id: jsonschema-validator
+          # Automatically reads "jsonschema-validator" from package.json
+
+Multi-language project with explicit config:
+
+.. code-block:: yaml
+
+  # .pre-commit-config.yaml
+  repos:
+    - repo: https://github.com/iilei/terraform-provider-jsonschema
+      rev: v0.5.0
+      hooks:
+        - id: jsonschema-validator
+          name: Validate API requests
+          args: ['--schema', 'api/request.schema.json']
+          files: '^api/requests/.*\.json$'
+        
+        - id: jsonschema-validator
+          name: Validate configuration
+          args: ['--schema', 'config.schema.json5']
+          files: '^config\.json5$'
+
+CI/CD Integration
+-----------------
+
+**GitHub Actions:**
+
+.. code-block:: yaml
+
+  name: Validate JSON files
+  on: [push, pull_request]
+  
+  jobs:
+    validate:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        
+        - name: Set up Go
+          uses: actions/setup-go@v5
+          with:
+            go-version: '1.23'
+        
+        - name: Install jsonschema-validator
+          run: go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+        
+        - name: Validate JSON files
+          run: jsonschema-validator  # Uses .jsonschema-validator.yaml
+
+**GitLab CI:**
+
+.. code-block:: yaml
+
+  validate-json:
+    image: golang:1.23
+    stage: test
+    script:
+      - go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+      - jsonschema-validator  # Uses .jsonschema-validator.yaml
+
+Exit Codes
+----------
+
+- ``0`` - All validations passed
+- ``1`` - Validation errors found (schema violations)
+- ``2`` - Usage errors (invalid arguments, missing files, etc.)
 
 Development
 ===========

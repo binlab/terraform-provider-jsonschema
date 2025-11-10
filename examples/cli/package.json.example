@@ -1,0 +1,27 @@
+{
+  "name": "my-nodejs-project",
+  "version": "1.0.0",
+  "description": "Example Node.js project with jsonschema-validator configuration",
+  "jsonschema-validator": {
+    "schemaVersion": "draft/2020-12",
+    "schemas": [
+      {
+        "path": "config.schema.json",
+        "documents": ["config.json", "config.*.json"]
+      },
+      {
+        "path": "api/request.schema.json",
+        "documents": ["api/requests/*.json"],
+        "refOverrides": {
+          "https://example.com/user.json": "./schemas/user.json",
+          "https://example.com/product.json": "./schemas/product.json"
+        }
+      },
+      {
+        "path": "app.schema.json5",
+        "documents": ["app.json5"]
+      }
+    ],
+    "errorTemplate": "❌ {{.ErrorCount}} validation error(s):\n{{range .Errors}}- {{.DocumentPath}}: {{.Message}}\n{{end}}"
+  }
+}

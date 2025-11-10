@@ -1,0 +1,46 @@
+# Example configuration file for jsonschema-validator CLI
+
+# Default schema version to use (if not specified in schema $schema field)
+schema_version: "draft/2020-12"
+
+# Schema-document mappings
+schemas:
+  # Simple single file validation
+  - path: "config.schema.json"
+    documents:
+      - "config.json"
+  
+  # Multiple files with glob patterns
+  - path: "api/request.schema.json"
+    documents:
+      - "api/requests/*.json"
+      - "api/requests/**/*.json"  # Recursive
+  
+  # JSON5 support
+  - path: "app.schema.json5"
+    documents:
+      - "app.json5"
+      - "app.*.json5"
+  
+  # With reference overrides (for offline validation)
+  - path: "schemas/main.schema.json"
+    documents:
+      - "data/production.json"
+      - "data/staging.json"
+    ref_overrides:
+      # Redirect remote URLs to local files
+      "https://example.com/schemas/user.json": "./schemas/user.json"
+      "https://example.com/schemas/product.json": "./schemas/product.json"
+
+# Custom error message template (optional)
+# Uses Go template syntax with these variables:
+#   .FullMessage - Complete formatted error
+#   .ErrorCount - Number of errors
+#   .Errors - Array of errors with .DocumentPath, .Message, .Value
+#   .SchemaFile - Path to schema
+#   .Document - Document content (truncated)
+error_template: |
+  ❌ Validation failed with {{.ErrorCount}} error(s):
+  {{range .Errors}}
+  • {{.DocumentPath}}: {{.Message}}
+  {{end}}
