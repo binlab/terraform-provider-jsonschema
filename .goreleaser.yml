@@ -2,12 +2,23 @@
 # behavior.
 version: 2
 
+# Define project variables for reusability
+project_name: terraform-provider-jsonschema
+
+# Note: We derive the CLI name by removing the 'terraform-provider-' prefix and adding `-validator` suffix.
+# CLI binary name: jsonschema-validator_{version}
+# Provider binary name: terraform-provider-jsonschema_{version}
+
+env:
+  - CLI_NAME=jsonschema-validator
+
 before:
   hooks:
     # this is just an example and not a requirement for provider building/publishing
     - go mod tidy
 builds:
-- env:
+- id: provider
+  env:
     # goreleaser does not work with CGO, it could also complicate
     # usage by users in CI/CD systems like Terraform Cloud where
     # they are unable to install libraries.
@@ -35,11 +46,52 @@ builds:
     - goos: windows
       goarch: arm64
   binary: '{{ .ProjectName }}_v{{ .Version }}'
+- id: cli
+  main: ./cmd/{{ .Env.CLI_NAME }}
+  env:
+    - CGO_ENABLED=0
+  mod_timestamp: '{{ .CommitTimestamp }}'
+  flags:
+    - -trimpath
+  ldflags:
+    - '-s -w -X main.version={{.Version}}'
+  goos:
+    - freebsd
+    - windows
+    - linux
+    - darwin
+  goarch:
+    - amd64
+    - '386'
+    - arm
+    - arm64
+  ignore:
+    - goos: darwin
+      goarch: '386'
+    - goos: windows
+      goarch: arm
+    - goos: windows
+      goarch: arm64
+  binary: '{{ .Env.CLI_NAME }}'
 archives:
-- formats: ["tar.gz", "zip" ]
+- id: provider
+  builds:
+    - provider
+  formats: ["tar.gz", "zip"]
   name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
-checksum:
+- id: cli
+  builds:
+    - cli
+  formats: ["tar.gz", "zip"]
+  name_template: '{{ .Env.CLI_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+checksums:
+- ids:
+    - provider
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+- ids:
+    - cli
+  name_template: '{{ .Env.CLI_NAME }}_{{ .Version }}_SHA256SUMS'
   algorithm: sha256
 
 changelog:
