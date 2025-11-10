@@ -84,14 +84,9 @@ archives:
     - cli
   formats: ["tar.gz", "zip"]
   name_template: '{{ .Env.CLI_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
-checksums:
-- ids:
-    - provider
+
+checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
-  algorithm: sha256
-- ids:
-    - cli
-  name_template: '{{ .Env.CLI_NAME }}_{{ .Version }}_SHA256SUMS'
   algorithm: sha256
 
 changelog:
