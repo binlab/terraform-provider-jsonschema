@@ -1,9 +1,10 @@
-package provider
+package jsonschema
 
 import (
 	"encoding/json"
 	"strings"
 	"testing"
+
 )
 
 func TestMarshalDeterministic(t *testing.T) {
