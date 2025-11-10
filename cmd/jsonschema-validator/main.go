@@ -39,6 +39,7 @@ func run() error {
 		refOverrides     []string
 		documents        []string
 		envPrefix        string
+		forceFiletype    string
 	)
 
 	pflag.BoolVarP(&showVersion, "version", "v", false, "Show version and exit")
@@ -50,6 +51,7 @@ func run() error {
 	pflag.StringArrayVarP(&refOverrides, "ref-override", "r", nil, "Override $ref URL with local file (format: url=path)")
 	pflag.StringArrayVarP(&documents, "document", "d", nil, "Document file(s) to validate (supports globs)")
 	pflag.StringVar(&envPrefix, "env-prefix", "JSONSCHEMA_VALIDATOR_", "Environment variable prefix (must end with underscore)")
+	pflag.StringVar(&forceFiletype, "force-filetype", "", "Force file type for documents (json, json5, yaml, toml). Auto-detected from extension if not set")
 
 	pflag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `jsonschema-validator - Validate JSON/JSON5 documents against JSON Schema
@@ -174,7 +176,7 @@ For more information, see: https://github.com/iilei/terraform-provider-jsonschem
 	// Validate all schemas
 	hasErrors := false
 	for _, schemaConfig := range cfg.Schemas {
-		if err := validateSchema(schemaConfig, cfg); err != nil {
+		if err := validateSchema(schemaConfig, cfg, forceFiletype); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			hasErrors = true
 		}
@@ -187,14 +189,9 @@ For more information, see: https://github.com/iilei/terraform-provider-jsonschem
 	return nil
 }
 
-func validateSchema(schemaConfig config.SchemaConfig, globalConfig *config.Config) error {
-	// Read and parse schema
-	schemaBytes, err := os.ReadFile(schemaConfig.Path)
-	if err != nil {
-		return fmt.Errorf("failed to read schema %q: %w", schemaConfig.Path, err)
-	}
-
-	schemaData, err := validator.ParseJSON5(schemaBytes)
+func validateSchema(schemaConfig config.SchemaConfig, globalConfig *config.Config, forceFiletype string) error {
+	// Read and parse schema (auto-detect format)
+	schemaData, err := validator.ParseFile(schemaConfig.Path, validator.FileTypeAuto)
 	if err != nil {
 		return fmt.Errorf("failed to parse schema %q: %w", schemaConfig.Path, err)
 	}
@@ -222,14 +219,10 @@ func validateSchema(schemaConfig config.SchemaConfig, globalConfig *config.Confi
 	)
 
 	for remoteURL, localPath := range mergedOverrides {
-		overrideBytes, err := os.ReadFile(localPath)
+		// Parse ref override file (auto-detect format)
+		overrideData, err := validator.ParseFile(localPath, validator.FileTypeAuto)
 		if err != nil {
-			return fmt.Errorf("ref-override: failed to read %q for URL %q: %w", localPath, remoteURL, err)
-		}
-
-		overrideData, err := validator.ParseJSON5(overrideBytes)
-		if err != nil {
-			return fmt.Errorf("ref-override: failed to parse %q: %w", localPath, err)
+			return fmt.Errorf("ref-override: failed to parse %q for URL %q: %w", localPath, remoteURL, err)
 		}
 
 		if err := compiler.AddResource(remoteURL, overrideData); err != nil {
@@ -256,7 +249,7 @@ func validateSchema(schemaConfig config.SchemaConfig, globalConfig *config.Confi
 	// Validate each document
 	hasErrors := false
 	for _, docPath := range schemaConfig.Documents {
-		if err := validateDocument(docPath, compiledSchema, schemaConfig, globalConfig); err != nil {
+		if err := validateDocument(docPath, compiledSchema, schemaConfig, globalConfig, forceFiletype); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			hasErrors = true
 		}
@@ -269,15 +262,14 @@ func validateSchema(schemaConfig config.SchemaConfig, globalConfig *config.Confi
 	return nil
 }
 
-func validateDocument(docPath string, schema *jsonschema.Schema, schemaConfig config.SchemaConfig, globalConfig *config.Config) error {
-	// Read document
-	docBytes, err := os.ReadFile(docPath)
-	if err != nil {
-		return fmt.Errorf("failed to read document %q: %w", docPath, err)
+func validateDocument(docPath string, schema *jsonschema.Schema, schemaConfig config.SchemaConfig, globalConfig *config.Config, forceFiletype string) error {
+	// Parse document file with optional forced file type
+	fileType := validator.FileType(forceFiletype)
+	if fileType == "" {
+		fileType = validator.FileTypeAuto
 	}
-
-	// Parse document (supports JSON5)
-	docData, err := validator.ParseJSON5(docBytes)
+	
+	docData, err := validator.ParseFile(docPath, fileType)
 	if err != nil {
 		return fmt.Errorf("failed to parse document %q: %w", docPath, err)
 	}
@@ -289,7 +281,7 @@ func validateDocument(docPath string, schema *jsonschema.Schema, schemaConfig co
 			effectiveTemplate = "{{.FullMessage}}"
 		}
 
-		formattedErr := validator.FormatValidationError(err, schemaConfig.Path, string(docBytes), effectiveTemplate)
+		formattedErr := validator.FormatValidationError(err, schemaConfig.Path, docPath, effectiveTemplate)
 		return fmt.Errorf("document %q: %w", docPath, formattedErr)
 	}
 

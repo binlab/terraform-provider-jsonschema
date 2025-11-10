@@ -32,40 +32,46 @@ func Test_dataSourceJsonschemaValidatorRead(t *testing.T) {
 
 	var cases = []struct {
 		name          string
-		document      string
+		documentContent string
+		documentFileName string
 		schemaFile    string
 		errorExpected bool
 		expectedJSON  string
 	}{
 		{
 			name:          "invalid document",
-			document:      "asd asdasd: ^%^*&^%",
+			documentContent: "asd asdasd: ^%^*&^%",
+			documentFileName: "invalid.txt",
 			schemaFile:    schemaFile,
 			errorExpected: true,
 		},
 		{
 			name:          "empty object fails required validation",
-			document:      "{}",
+			documentContent: "{}",
+			documentFileName: "empty.json",
 			schemaFile:    schemaFile,
 			errorExpected: true,
 		},
 		{
 			name:          "valid document",
-			document:      `{"test": "test"}`,
+			documentContent: `{"test": "test"}`,
+			documentFileName: "valid.json",
 			schemaFile:    schemaFile,
 			errorExpected: false,
 			expectedJSON:  `{"test":"test"}`,
 		},
 		{
 			name:          "JSON5 document with comments",
-			document:      `{"test": "test", /* comment */ }`,
+			documentContent: `{"test": "test", /* comment */ }`,
+			documentFileName: "valid.json5",
 			schemaFile:    schemaFile,
 			errorExpected: false,
 			expectedJSON:  `{"test":"test"}`,
 		},
 		{
 			name:          "JSON5 schema with JSON document",
-			document:      `{"name": "example", "age": 25}`,
+			documentContent: `{"name": "example", "age": 25}`,
+			documentFileName: "person.json",
 			schemaFile:    json5SchemaFile,
 			errorExpected: false,
 			expectedJSON:  `{"age":25,"name":"example"}`,
@@ -74,12 +80,18 @@ func Test_dataSourceJsonschemaValidatorRead(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create document file
+			docFile := filepath.Join(tempDir, tt.documentFileName)
+			if err := ioutil.WriteFile(docFile, []byte(tt.documentContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
 			resource.Test(t, resource.TestCase{
 				PreCheck:          func() { testAccPreCheck(t) },
 				ProviderFactories: providerFactories,
 				Steps: []resource.TestStep{
 					{
-						Config: makeDataSourceWithFile(tt.document, tt.schemaFile),
+						Config: makeDataSourceWithFile(docFile, tt.schemaFile),
 						Check: resource.ComposeAggregateTestCheckFunc(
 							func() resource.TestCheckFunc {
 								if tt.expectedJSON != "" {
@@ -117,12 +129,18 @@ func TestProviderConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := ioutil.WriteFile(docFile, []byte(`{"test":"value"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: providerFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: makeProviderConfigTest(schemaFile),
+				Config: makeProviderConfigTest(schemaFile, docFile),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.jsonschema_validator.test", "validated", `{"test":"value"}`),
 				),
@@ -154,34 +172,39 @@ func TestMultipleSchemasInSameDirectory(t *testing.T) {
 
 	var cases = []struct {
 		name          string
-		document      string
+		documentContent string
+		documentFileName string
 		schemaFile    string
 		errorExpected bool
 		expectedJSON  string
 	}{
 		{
 			name:          "validate user document",
-			document:      `{"name": "John", "email": "john@example.com"}`,
+			documentContent: `{"name": "John", "email": "john@example.com"}`,
+			documentFileName: "user.json",
 			schemaFile:    schema1File,
 			errorExpected: false,
 			expectedJSON:  `{"email":"john@example.com","name":"John"}`,
 		},
 		{
 			name:          "validate product document",
-			document:      `{"sku": "ABC123", "price": 99.99}`,
+			documentContent: `{"sku": "ABC123", "price": 99.99}`,
+			documentFileName: "product.json",
 			schemaFile:    schema2File,
 			errorExpected: false,
 			expectedJSON:  `{"price":99.99,"sku":"ABC123"}`,
 		},
 		{
 			name:          "invalid user document against user schema",
-			document:      `{"name": "John"}`, // missing email
+			documentContent: `{"name": "John"}`, // missing email
+			documentFileName: "invalid_user.json",
 			schemaFile:    schema1File,
 			errorExpected: true,
 		},
 		{
 			name:          "invalid product document against product schema",
-			document:      `{"sku": "ABC123"}`, // missing price
+			documentContent: `{"sku": "ABC123"}`, // missing price
+			documentFileName: "invalid_product.json",
 			schemaFile:    schema2File,
 			errorExpected: true,
 		},
@@ -189,12 +212,18 @@ func TestMultipleSchemasInSameDirectory(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create document file
+			docFile := filepath.Join(tempDir, tt.documentFileName)
+			if err := ioutil.WriteFile(docFile, []byte(tt.documentContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
 			resource.Test(t, resource.TestCase{
 				PreCheck:          func() { testAccPreCheck(t) },
 				ProviderFactories: providerFactories,
 				Steps: []resource.TestStep{
 					{
-						Config: makeDataSourceWithFile(tt.document, tt.schemaFile),
+						Config: makeDataSourceWithFile(docFile, tt.schemaFile),
 						Check: resource.ComposeAggregateTestCheckFunc(
 							func() resource.TestCheckFunc {
 								if tt.expectedJSON != "" {
@@ -219,26 +248,26 @@ func TestMultipleSchemasInSameDirectory(t *testing.T) {
 	}
 }
 
-func makeDataSourceWithFile(document string, schemaFile string) string {
+func makeDataSourceWithFile(documentPath string, schemaFile string) string {
 	return fmt.Sprintf(`
 data "jsonschema_validator" "test" {
   document = %q
   schema   = %q
 }
-`, document, schemaFile)
+`, documentPath, schemaFile)
 }
 
-func makeProviderConfigTest(schemaFile string) string {
+func makeProviderConfigTest(schemaFile string, documentPath string) string {
 	return fmt.Sprintf(`
 provider "jsonschema" {
   schema_version = "draft-04"
 }
 
 data "jsonschema_validator" "test" {
-  document = "{\"test\": \"value\"}"
+  document = %q
   schema   = %q
 }
-`, schemaFile)
+`, documentPath, schemaFile)
 }
 
 var schemaValid = `{
@@ -391,6 +420,12 @@ func TestRefOverrides(t *testing.T) {
 		}
 	}`
 
+	// Write test document file
+	testDocPath := filepath.Join(tempDir, "test.json")
+	if err := ioutil.WriteFile(testDocPath, []byte(testDoc), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	// Create provider config
 	config := &ProviderConfig{
 		DefaultSchemaVersion: "draft/2020-12",
@@ -401,7 +436,7 @@ func TestRefOverrides(t *testing.T) {
 	// Create resource data
 	d := dataSourceJsonschemaValidator().TestResourceData()
 	d.Set("schema", mainSchemaPath)
-	d.Set("document", testDoc)
+	d.Set("document", testDocPath)
 	d.Set("ref_overrides", map[string]interface{}{
 		"https://example.com/schemas/user.json":    userSchemaPath,
 		"https://example.com/schemas/product.json": productSchemaPath,
@@ -446,9 +481,15 @@ func TestRefOverridesErrors(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// Create document file
+		docPath := filepath.Join(tempDir, "test.json")
+		if err := ioutil.WriteFile(docPath, []byte(`{}`), 0644); err != nil {
+			t.Fatal(err)
+		}
+
 		d := dataSourceJsonschemaValidator().TestResourceData()
 		d.Set("schema", mainSchemaPath)
-		d.Set("document", `{}`)
+		d.Set("document", docPath)
 		d.Set("ref_overrides", map[string]interface{}{
 			"https://example.com/schema.json": "/nonexistent/file.json",
 		})
@@ -482,9 +523,15 @@ func TestRefOverridesErrors(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// Create document file
+		docPath := filepath.Join(tempDir, "test.json")
+		if err := ioutil.WriteFile(docPath, []byte(`{}`), 0644); err != nil {
+			t.Fatal(err)
+		}
+
 		d := dataSourceJsonschemaValidator().TestResourceData()
 		d.Set("schema", mainSchemaPath)
-		d.Set("document", `{}`)
+		d.Set("document", docPath)
 		d.Set("ref_overrides", map[string]interface{}{
 			"https://example.com/schema.json": invalidOverride,
 		})
