@@ -1,0 +1,21 @@
+- id: jsonschema-validator
+  name: JSON Schema Validator
+  description: Validate JSON/JSON5 files against JSON Schema (supports all drafts, JSON5, reference overrides)
+  entry: jsonschema-validator
+  language: golang
+  types: [json]
+  pass_filenames: true
+  additional_dependencies: []
+  minimum_pre_commit_version: '2.9.0'
+  require_serial: false
+  
+- id: jsonschema-validator-json5
+  name: JSON Schema Validator (JSON5)
+  description: Validate JSON5 files against JSON Schema with JSON5 support
+  entry: jsonschema-validator
+  language: golang
+  files: '\.(json5)$'
+  pass_filenames: true
+  additional_dependencies: []
+  minimum_pre_commit_version: '2.9.0'
+  require_serial: false

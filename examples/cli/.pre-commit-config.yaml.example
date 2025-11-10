@@ -1,0 +1,78 @@
+# Example .pre-commit-config.yaml configurations
+
+## Example 1: Zero-config (uses .jsonschema-validator.yaml)
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.5.0
+    hooks:
+      - id: jsonschema-validator
+        # Automatically discovers and uses .jsonschema-validator.yaml
+
+## Example 2: Inline configuration
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.5.0
+    hooks:
+      - id: jsonschema-validator
+        name: Validate API requests
+        args: ['--schema', 'api/request.schema.json']
+        files: '^api/requests/.*\.json$'
+      
+      - id: jsonschema-validator
+        name: Validate configuration
+        args:
+          - '--schema'
+          - 'config.schema.json5'
+          - '--schema-version'
+          - 'draft/2020-12'
+        files: '^config\.json5$'
+
+## Example 3: Python project (reads from pyproject.toml)
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.5.0
+    hooks:
+      - id: jsonschema-validator
+        # Automatically reads [tool.jsonschema-validator] from pyproject.toml
+
+## Example 4: Node.js project (reads from package.json)
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.5.0
+    hooks:
+      - id: jsonschema-validator
+        # Automatically reads "jsonschema-validator" from package.json
+
+## Example 5: Multiple schemas with different configurations
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.5.0
+    hooks:
+      - id: jsonschema-validator
+        name: Validate production configs
+        args:
+          - '--schema'
+          - 'schemas/production.schema.json'
+          - '--schema-version'
+          - 'draft/2020-12'
+          - '--ref-override'
+          - 'https://example.com/user.json=./schemas/user.json'
+        files: '^configs/production/.*\.json$'
+      
+      - id: jsonschema-validator-json5
+        name: Validate JSON5 configs
+        args: ['--schema', 'schemas/app.schema.json5']
+        files: '\.json5$'
+
+## Example 6: With custom error template
+repos:
+  - repo: https://github.com/iilei/terraform-provider-jsonschema
+    rev: v0.5.0
+    hooks:
+      - id: jsonschema-validator
+        args:
+          - '--schema'
+          - 'config.schema.json'
+          - '--error-template'
+          - '{{range .Errors}}{{.DocumentPath}}: {{.Message}}\n{{end}}'
+        files: '^config\.json$'

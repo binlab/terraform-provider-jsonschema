@@ -14,6 +14,8 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/fatih/color v1.16.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
@@ -36,6 +38,15 @@ require (
 	github.com/hashicorp/terraform-registry-address v0.4.0 // indirect
 	github.com/hashicorp/terraform-svchost v0.1.1 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
+	github.com/knadh/koanf/maps v0.1.2 // indirect
+	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
+	github.com/knadh/koanf/parsers/toml/v2 v2.2.0 // indirect
+	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
+	github.com/knadh/koanf/providers/confmap v1.0.0 // indirect
+	github.com/knadh/koanf/providers/env v1.1.0 // indirect
+	github.com/knadh/koanf/providers/file v1.2.0 // indirect
+	github.com/knadh/koanf/providers/posflag v1.0.1 // indirect
+	github.com/knadh/koanf/v2 v2.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
@@ -44,10 +55,13 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/oklog/run v1.1.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/zclconf/go-cty v1.17.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.3 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
