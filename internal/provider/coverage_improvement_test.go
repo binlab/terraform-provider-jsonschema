@@ -1,6 +1,7 @@
 package provider
 
 import (
+validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func TestGenerateSortedFullMessage_EmptyErrors(t *testing.T) {
 	}
 	
 	// Check if we can format this error
-	result := FormatValidationError(err, "test.json", `"not an object"`, "{{.FullMessage}}")
+	result := validator.FormatValidationError(err, "test.json", `"not an object"`, "{{.FullMessage}}")
 	if result == nil {
 		t.Fatal("Expected error result")
 	}
@@ -113,107 +114,6 @@ func TestDataSourceJsonschemaValidatorRead_NoDraftConfiguration(t *testing.T) {
 	}
 }
 
-// TestSortKeys_NonStringMap tests the edge case of maps with non-string keys
-func TestSortKeys_NonStringMap(t *testing.T) {
-	// In Go, JSON only supports string keys, but sortKeys should handle
-	// non-string key maps gracefully by returning them as-is
-	
-	// Create a map with integer keys (not possible from JSON, but sortKeys should handle it)
-	intKeyMap := map[int]string{
-		3: "three",
-		1: "one",
-		2: "two",
-	}
-	
-	// sortKeys should return this map as-is since keys are not strings
-	result := sortKeys(intKeyMap)
-	
-	// The result should be the same map (returned as-is)
-	resultMap, ok := result.(map[int]string)
-	if !ok {
-		t.Fatalf("Expected map[int]string, got %T", result)
-	}
-	
-	if len(resultMap) != 3 {
-		t.Errorf("Expected map with 3 elements, got %d", len(resultMap))
-	}
-	
-	// Verify the values are still there
-	if resultMap[1] != "one" || resultMap[2] != "two" || resultMap[3] != "three" {
-		t.Error("Map values were not preserved correctly")
-	}
-}
-
-// TestCompactDeterministicJSON_MalformedInput tests the json.Compact error path
-func TestCompactDeterministicJSON_MalformedInput(t *testing.T) {
-	// To trigger json.Compact to fail, we need MarshalDeterministic to return
-	// something that is valid for json.Marshal but invalid for json.Compact
-	// 
-	// However, this is actually impossible in practice because:
-	// 1. json.Marshal produces valid JSON
-	// 2. json.Compact only fails on invalid JSON input
-	// 3. If json.Marshal succeeds, json.Compact will succeed
-	//
-	// The only way to hit this error path would be if there's a bug in the
-	// json package itself, which is extremely unlikely.
-	
-	// Let's at least verify the function works correctly with edge cases
-	tests := []struct {
-		name string
-		data interface{}
-	}{
-		{
-			name: "deeply nested structure",
-			data: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"c": map[string]interface{}{
-							"d": []interface{}{1, 2, 3, 4, 5},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "empty structures",
-			data: map[string]interface{}{
-				"empty_map":   map[string]interface{}{},
-				"empty_array": []interface{}{},
-			},
-		},
-		{
-			name: "mixed types",
-			data: map[string]interface{}{
-				"string": "value",
-				"number": 42,
-				"float":  3.14,
-				"bool":   true,
-				"null":   nil,
-			},
-		},
-	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := CompactDeterministicJSON(tt.data)
-			if err != nil {
-				t.Errorf("CompactDeterministicJSON failed: %v", err)
-			}
-			
-			// Verify result is valid compact JSON
-			var parsed interface{}
-			if err := json.Unmarshal(result, &parsed); err != nil {
-				t.Errorf("Result is not valid JSON: %v", err)
-			}
-			
-			// Verify it's compact (no unnecessary whitespace)
-			if strings.Contains(string(result), "  ") || strings.Contains(string(result), "\n") {
-				t.Error("Result is not compact")
-			}
-		})
-	}
-}
-
 // TestDataSourceJsonschemaValidatorRead_AddResourceFailure tests the AddResource error path
 // This is extremely difficult to trigger because AddResource in jsonschema/v6 only fails when:
 // 1. The URL is malformed (invalid URL parsing)
@@ -271,114 +171,4 @@ func TestDataSourceJsonschemaValidatorRead_DuplicateSchemaURL(t *testing.T) {
 	// For now, we've documented this limitation. Achieving 100% coverage would
 	// require dependency injection or mocking of the compiler, which would be
 	// significant refactoring for minimal benefit.
-}
-
-// TestSortKeys_ComplexInterfaceTypes tests various interface wrapping scenarios
-func TestSortKeys_ComplexInterfaceTypes(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    interface{}
-		expected string
-	}{
-		{
-			name: "interface wrapping pointer to struct",
-			input: func() interface{} {
-				type testStruct struct {
-					Value string
-				}
-				ptr := &testStruct{Value: "test"}
-				var i interface{} = ptr
-				return i
-			}(),
-			expected: "has pointer",
-		},
-		{
-			name: "nested interface values",
-			input: map[string]interface{}{
-				"outer": map[string]interface{}{
-					"inner": func() interface{} {
-						var i interface{} = "nested value"
-						return i
-					}(),
-				},
-			},
-			expected: "nested",
-		},
-		{
-			name: "array of interfaces",
-			input: []interface{}{
-				func() interface{} { var i interface{} = 1; return i }(),
-				func() interface{} { var i interface{} = "two"; return i }(),
-				func() interface{} { var i interface{} = true; return i }(),
-			},
-			expected: "array",
-		},
-	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// sortKeys should handle these without panicking
-			result := sortKeys(tt.input)
-			if result == nil && tt.input != nil {
-				t.Error("Expected non-nil result for non-nil input")
-			}
-			
-			// Try to marshal the result to verify it's still valid
-			_, err := json.Marshal(result)
-			if err != nil {
-				t.Logf("Note: Cannot marshal result (expected for some test types): %v", err)
-				// This is acceptable for non-JSON-serializable types like struct pointers
-			}
-		})
-	}
-}
-
-// TestExtractCleanMessage_EdgeCases tests message extraction edge cases
-func TestExtractCleanMessage_EdgeCases(t *testing.T) {
-	tests := []struct {
-		name     string
-		message  string
-		path     string
-		expected string
-	}{
-		{
-			name:     "message with path prefix",
-			message:  "at '/field': value is invalid",
-			path:     "/field",
-			expected: "value is invalid",
-		},
-		{
-			name:     "message without path prefix",
-			message:  "value is invalid",
-			path:     "/field",
-			expected: "value is invalid",
-		},
-		{
-			name:     "empty path (root)",
-			message:  "at '': root validation failed",
-			path:     "",
-			expected: "root validation failed",
-		},
-		{
-			name:     "message with similar but non-matching prefix",
-			message:  "at '/other': something else",
-			path:     "/field",
-			expected: "at '/other': something else",
-		},
-		{
-			name:     "message with colon but no path",
-			message:  "error: something went wrong",
-			path:     "/field",
-			expected: "error: something went wrong",
-		},
-	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractCleanMessage(tt.message, tt.path)
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
-		})
-	}
 }

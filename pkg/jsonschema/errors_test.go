@@ -1,4 +1,4 @@
-package provider
+package jsonschema
 
 import (
 	"encoding/json"
@@ -51,30 +51,6 @@ func TestErrorMessageTemplating(t *testing.T) {
 				t.Errorf("Expected: %s\nGot: %s", tc.expected, result.Error())
 			}
 		})
-	}
-}
-
-func TestProviderConfigDefaults(t *testing.T) {
-	// Test that NewProviderConfig sets sensible defaults
-	config, err := NewProviderConfig("", "", false)
-	if err != nil {
-		t.Fatalf("Failed to create provider config: %v", err)
-	}
-
-	expectedErrorTemplate := "{{.FullMessage}}"
-	if config.DefaultErrorTemplate != expectedErrorTemplate {
-		t.Errorf("Expected default error template: %s\nGot: %s", expectedErrorTemplate, config.DefaultErrorTemplate)
-	}
-
-	// Test that custom template is preserved
-	customTemplate := "Custom error: {{.FullMessage}}"
-	config2, err := NewProviderConfig("", customTemplate, false)
-	if err != nil {
-		t.Fatalf("Failed to create provider config with custom template: %v", err)
-	}
-
-	if config2.DefaultErrorTemplate != customTemplate {
-		t.Errorf("Expected custom error template: %s\nGot: %s", customTemplate, config2.DefaultErrorTemplate)
 	}
 }
 

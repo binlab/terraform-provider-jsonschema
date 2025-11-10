@@ -1,4 +1,4 @@
-package provider
+package jsonschema
 
 import (
 	"encoding/json"

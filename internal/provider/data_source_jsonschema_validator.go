@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -74,7 +75,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 
 
 	// Parse document (supports JSON5)
-	documentData, err := ParseJSON5String(document)
+	documentData, err := validator.ParseJSON5String(document)
 	if err != nil {
 		return fmt.Errorf("failed to parse document: %w", err)
 	}
@@ -85,7 +86,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		return fmt.Errorf("failed to read schema file %q: %w", schemaPath, err)
 	}
 
-	schemaData, err := ParseJSON5(schemaBytes)
+	schemaData, err := validator.ParseJSON5(schemaBytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse schema file %q: %w", schemaPath, err)
 	}
@@ -95,7 +96,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	
 	// Enable JSON5 support for $ref loading
 	compiler.UseLoader(jsonschema.SchemeURLLoader{
-		"file": JSON5FileLoader{},
+		"file": validator.JSON5FileLoader{},
 	})
 	
 	// Determine which schema version to use
@@ -146,7 +147,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 					localPath, remoteURL, err)
 			}
 			
-			overrideData, err := ParseJSON5(overrideBytes)
+			overrideData, err := validator.ParseJSON5(overrideBytes)
 			if err != nil {
 				return fmt.Errorf("ref_override: failed to parse local file %q: %w", localPath, err)
 			}
@@ -162,7 +163,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	}
 
 	// Convert schema data to deterministic JSON string
-	schemaJSON, err := MarshalDeterministic(schemaData)
+	schemaJSON, err := validator.MarshalDeterministic(schemaData)
 	if err != nil {
 		return fmt.Errorf("failed to convert schema to JSON: %w", err)
 	}
@@ -192,11 +193,11 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 
 	// Validate the document
 	if err := compiledSchema.Validate(documentData); err != nil {
-		return FormatValidationError(err, schemaPath, document, errorMessageTemplate)
+		return validator.FormatValidationError(err, schemaPath, document, errorMessageTemplate)
 	}
 
 	// Convert document to deterministic canonical JSON
-	canonicalJSON, err := MarshalDeterministic(documentData)
+	canonicalJSON, err := validator.MarshalDeterministic(documentData)
 	if err != nil {
 		return fmt.Errorf("failed to convert document to canonical JSON: %w", err)
 	}

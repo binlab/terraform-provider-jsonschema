@@ -1,6 +1,7 @@
 package provider
 
 import (
+validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"testing"
 )
 
@@ -54,7 +55,7 @@ func TestDataSourceValidationLogic(t *testing.T) {
 			}
 
 			// Test document parsing with JSON5
-			parsedDoc, err := ParseJSON5String(tt.document)
+			parsedDoc, err := validator.ParseJSON5String(tt.document)
 			if err != nil {
 				if tt.expectError {
 					return // Expected error
@@ -64,7 +65,7 @@ func TestDataSourceValidationLogic(t *testing.T) {
 
 			// Test deterministic marshaling
 			if !tt.expectError && parsedDoc != nil {
-				result, err := MarshalDeterministic(parsedDoc)
+				result, err := validator.MarshalDeterministic(parsedDoc)
 				if err != nil {
 					t.Fatalf("unexpected marshaling error: %v", err)
 				}

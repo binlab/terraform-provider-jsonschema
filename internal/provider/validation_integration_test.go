@@ -1,6 +1,7 @@
 package provider
 
 import (
+validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"encoding/json"
 	"testing"
 	
@@ -104,7 +105,7 @@ func TestSchemaCompilationAndValidation(t *testing.T) {
 			}
 
 			// Parse the document
-			document, err := ParseJSON5String(tt.document)
+			document, err := validator.ParseJSON5String(tt.document)
 			if err != nil {
 				if !tt.expectErr {
 					t.Fatalf("failed to parse document: %v", err)
@@ -213,13 +214,13 @@ func TestValidationErrorTemplateIntegration(t *testing.T) {
 			}
 
 			// Parse the document
-			documentData, err := ParseJSON5String(tt.document)
+			documentData, err := validator.ParseJSON5String(tt.document)
 			if err != nil {
 				t.Fatalf("failed to parse document: %v", err)
 			}
 
 			// Parse the schema  
-			schemaData, err := ParseJSON5String(tt.schema)
+			schemaData, err := validator.ParseJSON5String(tt.schema)
 			if err != nil {
 				t.Fatalf("failed to parse schema: %v", err)
 			}
@@ -231,7 +232,7 @@ func TestValidationErrorTemplateIntegration(t *testing.T) {
 			}
 
 			// Convert schema to JSON for compilation
-			schemaJSON, err := MarshalDeterministic(schemaData)
+			schemaJSON, err := validator.MarshalDeterministic(schemaData)
 			if err != nil {
 				t.Fatalf("failed to marshal schema: %v", err)
 			}
@@ -259,7 +260,7 @@ func TestValidationErrorTemplateIntegration(t *testing.T) {
 			}
 
 			// Format the error using our error formatter
-			formattedErr := FormatValidationError(validationErr, "test://schema.json", tt.document, tt.errorTemplate)
+			formattedErr := validator.FormatValidationError(validationErr, "test://schema.json", tt.document, tt.errorTemplate)
 			if formattedErr == nil {
 				t.Fatalf("expected formatted error but got nil")
 			}
@@ -347,19 +348,19 @@ func TestJSON5ValidationIntegration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Parse JSON5 schema
-			schemaData, err := ParseJSON5String(tt.schema)
+			schemaData, err := validator.ParseJSON5String(tt.schema)
 			if err != nil {
 				t.Fatalf("failed to parse JSON5 schema: %v", err)
 			}
 
 			// Parse JSON5 document
-			documentData, err := ParseJSON5String(tt.document)
+			documentData, err := validator.ParseJSON5String(tt.document)
 			if err != nil {
 				t.Fatalf("failed to parse JSON5 document: %v", err)
 			}
 
 			// Compile schema using v6 API
-			schemaJSON, err := MarshalDeterministic(schemaData)
+			schemaJSON, err := validator.MarshalDeterministic(schemaData)
 			if err != nil {
 				t.Fatalf("failed to marshal schema: %v", err)
 			}
@@ -391,7 +392,7 @@ func TestJSON5ValidationIntegration(t *testing.T) {
 
 				// Test error formatting if template provided
 				if tt.errorTemplate != "" && tt.expectedError != "" {
-					formattedErr := FormatValidationError(validationErr, "test://json5-schema.json", tt.document, tt.errorTemplate)
+					formattedErr := validator.FormatValidationError(validationErr, "test://json5-schema.json", tt.document, tt.errorTemplate)
 					if formattedErr == nil {
 						t.Errorf("expected formatted error but got nil")
 					} else {
@@ -568,7 +569,7 @@ func TestValidationEdgeCases(t *testing.T) {
 				return
 			}
 
-			document, err := ParseJSON5String(tt.document)
+			document, err := validator.ParseJSON5String(tt.document)
 			if err != nil {
 				if !tt.expectErr {
 					t.Fatalf("failed to parse document: %v", err)
