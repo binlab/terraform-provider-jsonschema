@@ -38,9 +38,29 @@ jobs:
       run: |
         go mod download
 
-    - name: Build
+    - name: Build Provider
       run: |
         go build -v .
+
+    - name: Build CLI
+      run: |
+        go build -v -o jsonschema-validator ./cmd/jsonschema-validator
+
+    - name: Test CLI
+      run: |
+        ./jsonschema-validator --version
+        ./jsonschema-validator --help
+        
+        # Test successful validation
+        ./jsonschema-validator -s examples/pre-commit/schema.json examples/pre-commit/valid.json
+        
+        # Test validation failure (should exit with code 1)
+        if ./jsonschema-validator -s examples/pre-commit/schema.json examples/pre-commit/invalid.json 2>&1; then
+          echo "ERROR: Expected validation to fail but it passed"
+          exit 1
+        else
+          echo "✓ Validation correctly failed for invalid.json"
+        fi
 
   # run acceptance tests in a matrix with Terraform core versions
   test:
@@ -187,3 +207,78 @@ jobs:
         done
         
         exit $failed
+
+  # verify CLI tool and pre-commit integration
+  cli:
+    name: Test CLI Tool
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.3'
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4
+
+    - name: Get dependencies
+      run: |
+        go mod download
+
+    - name: Build CLI
+      run: |
+        go build -v -o jsonschema-validator ./cmd/jsonschema-validator
+
+    - name: Test CLI basic functionality
+      run: |
+        ./jsonschema-validator --version
+        ./jsonschema-validator --help
+
+    - name: Test CLI validation (success case)
+      run: |
+        ./jsonschema-validator -s examples/pre-commit/schema.json examples/pre-commit/valid.json
+        echo "✓ Valid document passed validation"
+
+    - name: Test CLI validation (failure case)
+      run: |
+        if ./jsonschema-validator -s examples/pre-commit/schema.json examples/pre-commit/invalid.json 2>&1; then
+          echo "ERROR: Expected validation to fail but it passed"
+          exit 1
+        else
+          echo "✓ Invalid document correctly failed validation"
+        fi
+
+    - name: Test CLI with multiple documents
+      run: |
+        # Test with glob pattern
+        ./jsonschema-validator -s examples/pre-commit/schema.json examples/pre-commit/*.json 2>&1 || true
+        echo "✓ CLI handles multiple files"
+
+    - name: Install CLI to GOPATH
+      run: |
+        go install ./cmd/jsonschema-validator
+
+    - name: Test pre-commit hook (dry run)
+      run: |
+        # Verify the binary is in PATH
+        which jsonschema-validator
+        jsonschema-validator --version
+        
+        # Install pre-commit
+        pip install pre-commit
+        
+        # Test with local config
+        pre-commit run --config .pre-commit-config-test.yaml --hook-stage manual --files examples/pre-commit/valid.json
+        echo "✓ Pre-commit hook passed for valid file"
+        
+        # Test that invalid file fails
+        if pre-commit run --config .pre-commit-config-test.yaml --hook-stage manual --files examples/pre-commit/invalid.json 2>&1; then
+          echo "ERROR: Expected pre-commit to fail but it passed"
+          exit 1
+        else
+          echo "✓ Pre-commit hook correctly failed for invalid file"
+        fi

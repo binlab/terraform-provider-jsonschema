@@ -26,11 +26,6 @@ go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validat
 
 Download from [GitHub Releases](https://github.com/iilei/terraform-provider-jsonschema/releases)
 
-### Via Homebrew (coming soon)
-
-```bash
-brew install iilei/tap/jsonschema-validator
-```
 
 ## Quick Start
 
