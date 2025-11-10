@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://api.example.com/schemas/api-request.json",
     "title": "API Request Schema",
-    "description": "Schema for validating API requests with user and product data",
+    "description": "Schema for validating API requests with user and product data. Demonstrates remote $ref with anchor fragments.",
     "type": "object",
     "properties": {
         "user": {
@@ -10,6 +10,10 @@
         },
         "product": {
             "$ref": "https://api.example.com/schemas/product.json"
+        },
+        "contactEmail": {
+            "description": "Contact email using anchor reference from remote schema",
+            "$ref": "https://api.example.com/schemas/user.json#email-format"
         }
     },
     "required": [

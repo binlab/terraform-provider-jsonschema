@@ -1,0 +1,13 @@
+{
+    "user": {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "age": 30
+    },
+    "product": {
+        "sku": "PROD-123",
+        "name": "Widget",
+        "price": 29.99
+    },
+    "contactEmail": "contact@example.com"
+}

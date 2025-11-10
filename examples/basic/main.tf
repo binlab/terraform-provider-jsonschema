@@ -11,17 +11,17 @@ provider "jsonschema" {}
 
 # Basic validation
 data "jsonschema_validator" "config" {
-  document = file("${path.module}/valid-config.json")
+  document = "${path.module}/valid-config.json"
   schema   = "${path.module}/config.schema.json"
 }
 
 output "validated_config" {
-  value = jsondecode(data.jsonschema_validator.config.validated)
+  value = jsondecode(data.jsonschema_validator.config.valid_json)
 }
 
 # Example with custom error template
 data "jsonschema_validator" "config_with_template" {
-  document = file("${path.module}/valid-config.json")
+  document = "${path.module}/valid-config.json"
   schema   = "${path.module}/config.schema.json"
   
   error_message_template = <<-EOT
@@ -45,7 +45,7 @@ data "jsonschema_validator" "config_with_template" {
 
 # Valid document - should pass validation
 data "jsonschema_validator" "traverse_demo_valid" {
-  document = file("${path.module}/traverse-demo-valid.json")
+  document = "${path.module}/traverse-demo-valid.json"
   schema   = "${path.module}/schemas/traverse_tree_demo/main_schema/config.schema.json"
   
   error_message_template = <<-EOT
@@ -56,7 +56,7 @@ data "jsonschema_validator" "traverse_demo_valid" {
 
 # Invalid document - shows how SchemaFile and SchemaPath appear in errors
 data "jsonschema_validator" "traverse_demo_invalid" {
-  document = file("${path.module}/traverse-demo-invalid.json")
+  document = "${path.module}/traverse-demo-invalid.json"
   schema   = "${path.module}/schemas/traverse_tree_demo/main_schema/config.schema.json"
   
   error_message_template = <<-EOT
@@ -102,7 +102,7 @@ output "traverse_demo_summary" {
       references = "test.schema.json via $ref with directory traversal"
       note = "SchemaPath shows resolved file:// URI, not the $id value"
     }
-    valid_document = data.jsonschema_validator.traverse_demo_valid.validated
+    valid_document = data.jsonschema_validator.traverse_demo_valid.valid_json
     demo_purpose = "See how SchemaFile and SchemaPath differ in error output"
   }
 }
