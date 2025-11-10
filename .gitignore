@@ -6,3 +6,4 @@ coverage.*
 examples/*/.terraform
 examples/**/.terraform
 examples/**/.terraform.lock.hcl
+jsonschema-validator

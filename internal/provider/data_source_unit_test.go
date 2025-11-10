@@ -48,9 +48,19 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Helper to create document files
+	createDocFile := func(content string, name string) string {
+		docFile := filepath.Join(tempDir, name)
+		if err := os.WriteFile(docFile, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		return docFile
+	}
+
 	tests := []struct {
 		name                   string
-		document               string
+		documentContent        string
+		documentFileName       string
 		schemaFile             string
 		schemaVersionOverride  string
 		errorMessageTemplate   string
@@ -60,9 +70,10 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 		expectedValidated      string
 	}{
 		{
-			name:       "valid document validation",
-			document:   `{"name": "John", "age": 25}`,
-			schemaFile: schemaFile,
+			name:             "valid document validation",
+			documentContent:  `{"name": "John", "age": 25}`,
+			documentFileName: "valid.json",
+			schemaFile:       schemaFile,
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
@@ -70,9 +81,10 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 			expectedValidated: `{"age":25,"name":"John"}`,
 		},
 		{
-			name:       "JSON5 document with JSON schema",
-			document:   `{name: "John", age: 25, /* comment */}`,
-			schemaFile: schemaFile,
+			name:             "JSON5 document with JSON schema",
+			documentContent:  `{name: "John", age: 25, /* comment */}`,
+			documentFileName: "valid.json5",
+			schemaFile:       schemaFile,
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
@@ -80,9 +92,10 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 			expectedValidated: `{"age":25,"name":"John"}`,
 		},
 		{
-			name:       "JSON5 schema validation",
-			document:   `{"email": "john@example.com", "active": true}`,
-			schemaFile: json5SchemaFile,
+			name:             "JSON5 schema validation",
+			documentContent:  `{"email": "john@example.com", "active": true}`,
+			documentFileName: "email.json",
+			schemaFile:       json5SchemaFile,
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
@@ -90,9 +103,10 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 			expectedValidated: `{"active":true,"email":"john@example.com"}`,
 		},
 		{
-			name:       "validation failure",
-			document:   `{"age": 25}`, // missing required "name"
-			schemaFile: schemaFile,
+			name:             "validation failure",
+			documentContent:  `{"age": 25}`, // missing required "name"
+			documentFileName: "invalid.json",
+			schemaFile:       schemaFile,
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "Validation error: {error}",
 			},
@@ -101,7 +115,8 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 		},
 		{
 			name:                  "schema version override",
-			document:              `{"name": "John"}`,
+			documentContent:       `{"name": "John"}`,
+			documentFileName:      "john.json",
 			schemaFile:            schemaFile,
 			schemaVersionOverride: "draft-04",
 			providerConfig: &ProviderConfig{
@@ -114,7 +129,8 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 
 		{
 			name:                 "custom error template",
-			document:             `{"name": 123}`, // invalid type
+			documentContent:      `{"name": 123}`, // invalid type
+			documentFileName:     "wrongtype.json",
 			schemaFile:           schemaFile,
 			errorMessageTemplate: "Custom error: {error}",
 			providerConfig: &ProviderConfig{
@@ -124,19 +140,21 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 			errorContains: "Custom error:",
 		},
 		{
-			name:       "file not found error",
-			document:   `{"name": "John"}`,
-			schemaFile: "/nonexistent/schema.json",
+			name:             "schema file not found error",
+			documentContent:  `{"name": "John"}`,
+			documentFileName: "test.json",
+			schemaFile:       "/nonexistent/schema.json",
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
 			expectError:   true,
-			errorContains: "failed to read schema file",
+			errorContains: "failed to parse schema file",
 		},
 		{
-			name:       "invalid JSON document",
-			document:   `{invalid json`,
-			schemaFile: schemaFile,
+			name:             "invalid JSON document",
+			documentContent:  `{invalid json`,
+			documentFileName: "invalid_syntax.json",
+			schemaFile:       schemaFile,
 			providerConfig: &ProviderConfig{
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
@@ -147,9 +165,15 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create document file
+			var documentPath string
+			if tt.documentFileName != "" {
+				documentPath = createDocFile(tt.documentContent, tt.documentFileName)
+			}
+
 			// Create resource data
 			resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-				"document":               tt.document,
+				"document":               documentPath,
 				"schema":                 tt.schemaFile,
 				"schema_version":         tt.schemaVersionOverride,
 				"error_message_template": tt.errorMessageTemplate,
@@ -189,13 +213,26 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 }
 
 func TestDataSourceJsonschemaValidatorRead_InvalidProviderConfig(t *testing.T) {
+	// Create temporary directory and files
+	tempDir, err := os.MkdirTemp("", "jsonschema_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create test document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"test": "value"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-		"document": `{"test": "value"}`,
+		"document": docFile,
 		"schema":   "/some/path.json",
 	})
 
 	// Pass invalid config type
-	err := dataSourceJsonschemaValidatorRead(resourceData, "invalid-config")
+	err = dataSourceJsonschemaValidatorRead(resourceData, "invalid-config")
 	
 	if err == nil {
 		t.Errorf("expected error for invalid provider config")
@@ -220,8 +257,14 @@ func TestDataSourceJsonschemaValidatorRead_InvalidDocumentParsing(t *testing.T) 
 		t.Fatal(err)
 	}
 
+	// Create document file with invalid JSON
+	docFile := filepath.Join(tempDir, "invalid.json")
+	if err := os.WriteFile(docFile, []byte(`{"test": "\x"}`), 0644); err != nil { // invalid escape sequence
+		t.Fatal(err)
+	}
+
 	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-		"document": `{"test": "\x"}`, // invalid escape sequence
+		"document": docFile,
 		"schema":   schemaFile,
 	})
 
@@ -250,8 +293,14 @@ func TestDataSourceJsonschemaValidatorRead_InvalidSchemaVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"test": "value"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-		"document":       `{"test": "value"}`,
+		"document":       docFile,
 		"schema":         schemaFile,
 		"schema_version": "invalid-version",
 	})
@@ -272,8 +321,20 @@ func TestDataSourceJsonschemaValidatorRead_InvalidSchemaVersion(t *testing.T) {
 }
 
 func TestDataSourceJsonschemaValidatorRead_MissingSchemaFile(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "jsonschema_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"test": "value"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-		"document": `{"test": "value"}`,
+		"document": docFile,
 		"schema":   "/path/to/nonexistent/schema.json",
 	})
 
@@ -281,10 +342,10 @@ func TestDataSourceJsonschemaValidatorRead_MissingSchemaFile(t *testing.T) {
 		DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 	}
 
-	err := dataSourceJsonschemaValidatorRead(resourceData, config)
+	err = dataSourceJsonschemaValidatorRead(resourceData, config)
 	
-	if err == nil || !strings.Contains(err.Error(), "failed to read schema file") {
-		t.Errorf("expected 'failed to read schema file' error, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "failed to parse schema file") {
+		t.Errorf("expected 'failed to parse schema file' error, got: %v", err)
 	}
 }
 
@@ -301,8 +362,14 @@ func TestDataSourceJsonschemaValidatorRead_UnreadableSchemaFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"test": "value"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-		"document": `{"test": "value"}`,
+		"document": docFile,
 		"schema":   schemaFile,
 	})
 
@@ -312,8 +379,8 @@ func TestDataSourceJsonschemaValidatorRead_UnreadableSchemaFile(t *testing.T) {
 
 	err = dataSourceJsonschemaValidatorRead(resourceData, config)
 	
-	if err == nil || !strings.Contains(err.Error(), "failed to read schema file") {
-		t.Errorf("expected 'failed to read schema file' error, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "failed to parse schema file") {
+		t.Errorf("expected 'failed to parse schema file' error, got: %v", err)
 	}
 }
 
@@ -330,8 +397,14 @@ func TestDataSourceJsonschemaValidatorRead_InvalidSchemaFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"test": "value"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-		"document": `{"test": "value"}`,
+		"document": docFile,
 		"schema":   schemaFile,
 	})
 
@@ -389,6 +462,12 @@ func TestDataSourceJsonschemaValidatorRead_ConfigurationCombinations(t *testing.
 		t.Fatal(err)
 	}
 
+	// Create test document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"name": "test"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name           string
 		providerConfig *ProviderConfig
@@ -402,7 +481,7 @@ func TestDataSourceJsonschemaValidatorRead_ConfigurationCombinations(t *testing.
 				DefaultErrorTemplate: "Provider: {error}",
 			},
 			resourceConfig: map[string]interface{}{
-				"document": `{"name": "test"}`,
+				"document": docFile,
 				"schema":   schemaFile,
 			},
 			expectError: false,
@@ -414,7 +493,7 @@ func TestDataSourceJsonschemaValidatorRead_ConfigurationCombinations(t *testing.
 				DefaultErrorTemplate: "Provider: {error}",
 			},
 			resourceConfig: map[string]interface{}{
-				"document":               `{"name": "test"}`,
+				"document":               docFile,
 				"schema":                 schemaFile,
 				"schema_version":         "draft-04",
 				"base_url":               "https://resource.com/",
@@ -428,7 +507,7 @@ func TestDataSourceJsonschemaValidatorRead_ConfigurationCombinations(t *testing.
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
 			resourceConfig: map[string]interface{}{
-				"document": `{"name": "test"}`,
+				"document": docFile,
 				"schema":   schemaFile,
 			},
 			expectError: false,
@@ -514,14 +593,14 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		document      string
+		documentContent string
 		refOverrides  map[string]interface{}
 		expectError   bool
 		errorContains string
 	}{
 		{
 			name:     "valid ref override",
-			document: `{"user": {"name": "John", "email": "john@example.com"}}`,
+			documentContent: `{"user": {"name": "John", "email": "john@example.com"}}`,
 			refOverrides: map[string]interface{}{
 				"https://example.com/schemas/user.json": overrideSchemaFile,
 			},
@@ -529,7 +608,7 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 		},
 		{
 			name:     "validation fails with override",
-			document: `{"user": {"email": "john@example.com"}}`, // missing required "name"
+			documentContent: `{"user": {"email": "john@example.com"}}`, // missing required "name"
 			refOverrides: map[string]interface{}{
 				"https://example.com/schemas/user.json": overrideSchemaFile,
 			},
@@ -538,16 +617,16 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 		},
 		{
 			name:     "missing override file",
-			document: `{"user": {"name": "John"}}`,
+			documentContent: `{"user": {"name": "John"}}`,
 			refOverrides: map[string]interface{}{
 				"https://example.com/schemas/user.json": "/nonexistent/file.json",
 			},
 			expectError:   true,
-			errorContains: "ref_override: failed to read local file",
+			errorContains: "ref_override: failed to parse local file",
 		},
 		{
 			name:     "invalid override file syntax",
-			document: `{"user": {"name": "John"}}`,
+			documentContent: `{"user": {"name": "John"}}`,
 			refOverrides: map[string]interface{}{
 				"https://example.com/schemas/user.json": invalidOverrideFile,
 			},
@@ -556,16 +635,16 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 		},
 		{
 			name:     "unreadable override file",
-			document: `{"user": {"name": "John"}}`,
+			documentContent: `{"user": {"name": "John"}}`,
 			refOverrides: map[string]interface{}{
 				"https://example.com/schemas/user.json": unreadableOverrideFile,
 			},
 			expectError:   true,
-			errorContains: "ref_override: failed to read local file",
+			errorContains: "ref_override: failed to parse local file",
 		},
 		{
 			name:     "invalid schema structure in override",
-			document: `{"user": {"name": "John"}}`,
+			documentContent: `{"user": {"name": "John"}}`,
 			refOverrides: map[string]interface{}{
 				"https://example.com/schemas/user.json": invalidSchemaOverrideFile,
 			},
@@ -580,8 +659,14 @@ func TestDataSourceJsonschemaValidatorRead_RefOverrides(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create document file
+			docFile := filepath.Join(tempDir, "doc_"+tt.name+".json")
+			if err := os.WriteFile(docFile, []byte(tt.documentContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
 			resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-				"document":      tt.document,
+				"document":      docFile,
 				"schema":        baseSchemaFile,
 				"ref_overrides": tt.refOverrides,
 			})
@@ -640,14 +725,14 @@ func TestDataSourceJsonschemaValidatorRead_SchemaCompilationErrors(t *testing.T)
 	tests := []struct {
 		name          string
 		schemaFile    string
-		document      string
+		documentContent string
 		expectError   bool
 		errorContains string
 	}{
 		{
 			name:          "invalid type in schema",
 			schemaFile:    invalidSchemaFile,
-			document:      `{"name": "test"}`,
+			documentContent: `{"name": "test"}`,
 			expectError:   true,
 			errorContains: "failed to compile schema",
 		},
@@ -659,8 +744,14 @@ func TestDataSourceJsonschemaValidatorRead_SchemaCompilationErrors(t *testing.T)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create document file
+			docFile := filepath.Join(tempDir, "doc_"+tt.name+".json")
+			if err := os.WriteFile(docFile, []byte(tt.documentContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
 			resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-				"document": tt.document,
+				"document": docFile,
 				"schema":   tt.schemaFile,
 			})
 
@@ -690,6 +781,12 @@ func TestDataSourceJsonschemaValidatorRead_DraftHandling(t *testing.T) {
 	schemaContent := `{"type": "object", "properties": {"name": {"type": "string"}}}`
 	schemaFile := filepath.Join(tempDir, "test.schema.json")
 	if err := os.WriteFile(schemaFile, []byte(schemaContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create document file
+	docFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docFile, []byte(`{"name": "test"}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -751,7 +848,7 @@ func TestDataSourceJsonschemaValidatorRead_DraftHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, map[string]interface{}{
-				"document":       `{"name": "test"}`,
+				"document":       docFile,
 				"schema":         schemaFile,
 				"schema_version": tt.schemaVersion,
 			})

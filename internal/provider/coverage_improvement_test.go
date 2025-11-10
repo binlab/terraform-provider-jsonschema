@@ -79,6 +79,12 @@ func TestDataSourceJsonschemaValidatorRead_NoDraftConfiguration(t *testing.T) {
 	if err := os.WriteFile(schemaPath, []byte(schemaContent), 0644); err != nil {
 		t.Fatalf("Failed to create schema file: %v", err)
 	}
+
+	// Create document file
+	docPath := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docPath, []byte(`{"name": "test"}`), 0644); err != nil {
+		t.Fatalf("Failed to create document file: %v", err)
+	}
 	
 	// Create resource data
 	d := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
@@ -89,7 +95,7 @@ func TestDataSourceJsonschemaValidatorRead_NoDraftConfiguration(t *testing.T) {
 		"ref_overrides": {Type: schema.TypeMap},
 		"validated": {Type: schema.TypeString},
 	}, map[string]interface{}{
-		"document": `{"name": "test"}`,
+		"document": docPath,
 		"schema":   schemaPath,
 		"schema_version": "", // No version specified
 	})
@@ -135,6 +141,12 @@ func TestDataSourceJsonschemaValidatorRead_DuplicateSchemaURL(t *testing.T) {
 	if err := os.WriteFile(schemaPath, []byte(schemaContent), 0644); err != nil {
 		t.Fatalf("Failed to create schema file: %v", err)
 	}
+
+	// Create document file
+	docPath := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(docPath, []byte(`{"name": "test"}`), 0644); err != nil {
+		t.Fatalf("Failed to create document file: %v", err)
+	}
 	
 	// Create resource data
 	d := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
@@ -145,7 +157,7 @@ func TestDataSourceJsonschemaValidatorRead_DuplicateSchemaURL(t *testing.T) {
 		"ref_overrides": {Type: schema.TypeMap},
 		"validated": {Type: schema.TypeString},
 	}, map[string]interface{}{
-		"document": `{"name": "test"}`,
+		"document": docPath,
 		"schema":   schemaPath,
 	})
 	

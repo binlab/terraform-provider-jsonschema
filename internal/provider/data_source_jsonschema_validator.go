@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -23,12 +22,17 @@ func dataSourceJsonschemaValidator() *schema.Resource {
 			"document": {
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "JSON or JSON5 document content to validate",
+				Description: "Path to document file to validate (supports .json, .json5, .yaml, .yml, .toml)",
+			},
+			"force_filetype": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Force document file type (json, json5, yaml, toml). If not set, type is auto-detected from file extension.",
 			},
 			"schema": {
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "Path to JSON or JSON5 schema file",
+				Description: "Path to schema file (supports .json, .json5, .yaml, .yml)",
 			},
 			"schema_version": {
 				Type:        schema.TypeString,
@@ -62,7 +66,8 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		return fmt.Errorf("invalid provider configuration")
 	}
 
-	document := d.Get("document").(string)
+	documentPath := d.Get("document").(string)
+	documentForceFiletype, _ := d.Get("force_filetype").(string)
 	schemaPath := d.Get("schema").(string)
 	schemaVersionOverride := d.Get("schema_version").(string)
 	errorMessageTemplate := d.Get("error_message_template").(string)
@@ -72,21 +77,19 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		errorMessageTemplate = config.DefaultErrorTemplate
 	}
 
-
-
-	// Parse document (supports JSON5)
-	documentData, err := validator.ParseJSON5String(document)
+	// Parse document file (supports JSON, JSON5, YAML, TOML)
+	docFileType := validator.FileType(documentForceFiletype)
+	if docFileType == "" {
+		docFileType = validator.FileTypeAuto
+	}
+	
+	documentData, err := validator.ParseFile(documentPath, docFileType)
 	if err != nil {
-		return fmt.Errorf("failed to parse document: %w", err)
+		return fmt.Errorf("failed to parse document file %q: %w", documentPath, err)
 	}
 
-	// Read and parse schema file (supports JSON5)
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read schema file %q: %w", schemaPath, err)
-	}
-
-	schemaData, err := validator.ParseJSON5(schemaBytes)
+	// Parse schema file (auto-detect from extension: .json/.json5 → JSON5 parser, .yaml/.yml → YAML parser)
+	schemaData, err := validator.ParseFile(schemaPath, validator.FileTypeAuto)
 	if err != nil {
 		return fmt.Errorf("failed to parse schema file %q: %w", schemaPath, err)
 	}
@@ -140,16 +143,11 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		for remoteURL, localPathRaw := range refOverrides {
 			localPath := localPathRaw.(string)
 			
-			// Read and parse the override schema file (JSON5 supported)
-			overrideBytes, err := os.ReadFile(localPath)
+			// Parse the override schema file (supports JSON, JSON5, YAML, TOML - auto-detect)
+			overrideData, err := validator.ParseFile(localPath, validator.FileTypeAuto)
 			if err != nil {
-				return fmt.Errorf("ref_override: failed to read local file %q for URL %q: %w", 
+				return fmt.Errorf("ref_override: failed to parse local file %q for URL %q: %w", 
 					localPath, remoteURL, err)
-			}
-			
-			overrideData, err := validator.ParseJSON5(overrideBytes)
-			if err != nil {
-				return fmt.Errorf("ref_override: failed to parse local file %q: %w", localPath, err)
 			}
 			
 			// Pre-register this schema at the remote URL.
@@ -193,7 +191,7 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 
 	// Validate the document
 	if err := compiledSchema.Validate(documentData); err != nil {
-		return validator.FormatValidationError(err, schemaPath, document, errorMessageTemplate)
+		return validator.FormatValidationError(err, schemaPath, documentPath, errorMessageTemplate)
 	}
 
 	// Convert document to deterministic canonical JSON
