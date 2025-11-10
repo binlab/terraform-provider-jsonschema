@@ -336,35 +336,9 @@ CLI Usage Examples
 Pre-commit Hook Integration
 ----------------------------
 
-**Status:** Implementation checklist
+The CLI tool integrates seamlessly with `pre-commit <https://pre-commit.com/>`_ for automated validation in your development workflow.
 
-.. code-block:: text
-
-  Pre-commit Hook Features:
-  
-  ☐ Configuration discovery from .jsonschema-validator.yaml
-  ☐ Configuration discovery from pyproject.toml [tool.jsonschema-validator]
-  ☐ Configuration discovery from package.json "jsonschema-validator"
-  ☐ Environment variable support (JSONSCHEMA_VALIDATOR_*)
-  ☐ Command-line flag parsing (matching Terraform provider options)
-  ☐ JSON5 document validation
-  ☐ JSON5 schema validation
-  ☐ Schema version selection (draft 4/6/7/2019-09/2020-12)
-  ☐ Reference override support (ref_overrides)
-  ☐ Custom error message templates
-  ☐ Batch file validation (multiple documents per schema)
-  ☐ Glob pattern support for document paths
-  ☐ Exit codes (0=success, 1=validation error, 2=usage error)
-  ☐ Colored output for TTY
-  ☐ JSON output format (--format json)
-  ☐ Quiet mode (--quiet)
-  ☐ Verbose mode (--verbose)
-  ☐ Stdin support (validate from pipe)
-  ☐ Pre-commit hooks.yaml configuration
-  ☐ GitHub Actions integration example
-  ☐ GitLab CI integration example
-
-Add to ``.pre-commit-config.yaml``:
+**Add to .pre-commit-config.yaml:**
 
 .. code-block:: yaml
 
@@ -373,10 +347,10 @@ Add to ``.pre-commit-config.yaml``:
       rev: v0.5.0
       hooks:
         - id: jsonschema-validator
-          # Uses .jsonschema-validator.yaml automatically
-          # Or override with args:
-          args: ['--schema', 'config.schema.json']
-          files: '^config\.json$'
+          files: '\.(json|json5)$'
+          args: ['-s', 'schemas/my-schema.json', '--ref-overrides', 'https://example.com/schema.json=./local/schema.json']
+
+**Note:** The hook runs in ``manual`` stage by default. Users define file patterns and all CLI arguments in their configuration.
 
 **Example workflows:**
 
