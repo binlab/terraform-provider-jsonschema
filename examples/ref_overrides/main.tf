@@ -17,27 +17,26 @@ provider "jsonschema" {
 
 data "jsonschema_validator" "api_request" {
   # Main schema file that contains $ref to remote URLs
+  # The api-request schema references:
+  # 1. Full remote schema: https://api.example.com/schemas/user.json
+  # 2. Remote schema with anchor fragment: https://api.example.com/schemas/user.json#email-format
   schema = "${path.module}/schemas/api-request.schema.json"
   
-  # The JSON document to validate
-  document = jsonencode({
-    user = {
-      name  = "John Doe"
-      email = "john@example.com"
-      age   = 30
-    }
-    product = {
-      sku   = "PROD-123"
-      name  = "Widget"
-      price = 29.99
-    }
-  })
+  # Document file path (v0.6.0+ API - no file() wrapper needed)
+  document = "${path.module}/api-request.json"
   
   # Map remote schema URLs to local files
-  # This allows validation without network access
+  # Once a base URL is overridden, anchor fragments are resolved automatically
+  # from the local file (e.g., #email-format will be found in user.schema.json)
   ref_overrides = {
     "https://api.example.com/schemas/user.json"    = "${path.module}/schemas/user.schema.json"
     "https://api.example.com/schemas/product.json" = "${path.module}/schemas/product.schema.json"
   }
+}
+
+# Access the validated document
+output "validated_request" {
+  value       = jsondecode(data.jsonschema_validator.api_request.valid_json)
+  description = "The validated API request data"
 }
 

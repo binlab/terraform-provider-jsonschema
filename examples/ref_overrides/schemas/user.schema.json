@@ -2,28 +2,32 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://api.example.com/schemas/user.json",
     "title": "User Schema",
-    "description": "Schema for user data validation",
-    "type": "object",
-    "properties": {
-        "name": {
-            "type": "string",
-            "minLength": 1,
-            "description": "User's full name"
-        },
-        "email": {
+    "description": "Schema for user objects with named anchors",
+    "$defs": {
+        "emailAddress": {
+            "$anchor": "email-format",
             "type": "string",
             "format": "email",
-            "description": "User's email address"
+            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
         },
-        "age": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 150,
-            "description": "User's age in years"
+        "userName": {
+            "$anchor": "name-format",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+        }
+    },
+    "type": "object",
+    "properties": {
+        "email": {
+            "$ref": "#email-format"
+        },
+        "name": {
+            "$ref": "#name-format"
         }
     },
     "required": [
-        "name",
-        "email"
+        "email",
+        "name"
     ]
 }
