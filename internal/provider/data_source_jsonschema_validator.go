@@ -51,10 +51,10 @@ func dataSourceJsonschemaValidator() *schema.Resource {
 				Description: "Map of remote schema URLs to local file paths. When a $ref references a URL in this map, the local file will be used instead. This allows offline validation with schemas that reference remote resources.",
 			},
 
-			"validated": {
+			"valid_json": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "The validated document in canonical JSON format",
+				Description: "The validated document in canonical JSON format. Only set when validation succeeds. Use jsondecode() to access nested structures.",
 			},
 		},
 	}
@@ -200,9 +200,9 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		return fmt.Errorf("failed to convert document to canonical JSON: %w", err)
 	}
 
-	// Set the validated document
-	if err := d.Set("validated", string(canonicalJSON)); err != nil {
-		return fmt.Errorf("failed to set validated field: %w", err)
+	// Set the valid_json output field
+	if err := d.Set("valid_json", string(canonicalJSON)); err != nil {
+		return fmt.Errorf("failed to set valid_json field: %w", err)
 	}
 
 	// Generate ID based on document, schema, and configuration

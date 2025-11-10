@@ -91,8 +91,8 @@ func TestDataSourceSchemaStructure(t *testing.T) {
 	}
 
 	// Test that the computed field is present
-	if _, ok := ds.Schema["validated"]; !ok {
-		t.Errorf("expected 'validated' computed field to be present")
+	if _, ok := ds.Schema["valid_json"]; !ok {
+		t.Errorf("expected 'valid_json' computed field to be present")
 	}
 
 	// Test that the read function is set

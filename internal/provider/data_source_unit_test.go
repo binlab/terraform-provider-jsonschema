@@ -67,7 +67,7 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 		providerConfig         *ProviderConfig
 		expectError            bool
 		errorContains          string
-		expectedValidated      string
+		expectedValidJson      string
 	}{
 		{
 			name:             "valid document validation",
@@ -78,7 +78,7 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
 			expectError:       false,
-			expectedValidated: `{"age":25,"name":"John"}`,
+			expectedValidJson: `{"age":25,"name":"John"}`,
 		},
 		{
 			name:             "JSON5 document with JSON schema",
@@ -89,7 +89,7 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
 			expectError:       false,
-			expectedValidated: `{"age":25,"name":"John"}`,
+			expectedValidJson: `{"age":25,"name":"John"}`,
 		},
 		{
 			name:             "JSON5 schema validation",
@@ -100,7 +100,7 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
 			expectError:       false,
-			expectedValidated: `{"active":true,"email":"john@example.com"}`,
+			expectedValidJson: `{"active":true,"email":"john@example.com"}`,
 		},
 		{
 			name:             "validation failure",
@@ -124,7 +124,7 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
 			},
 			expectError:       false,
-			expectedValidated: `{"name":"John"}`,
+			expectedValidJson: `{"name":"John"}`,
 		},
 
 		{
@@ -198,10 +198,10 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 				return
 			}
 
-			// Verify validated field
-			validated := resourceData.Get("validated").(string)
-			if tt.expectedValidated != "" && validated != tt.expectedValidated {
-				t.Errorf("expected validated %q, got %q", tt.expectedValidated, validated)
+			// Verify valid_json field
+			validJson := resourceData.Get("valid_json").(string)
+			if tt.expectedValidJson != "" && validJson != tt.expectedValidJson {
+				t.Errorf("expected valid_json %q, got %q", tt.expectedValidJson, validJson)
 			}
 
 			// Verify ID was set

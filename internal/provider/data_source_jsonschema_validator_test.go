@@ -95,9 +95,9 @@ func Test_dataSourceJsonschemaValidatorRead(t *testing.T) {
 						Check: resource.ComposeAggregateTestCheckFunc(
 							func() resource.TestCheckFunc {
 								if tt.expectedJSON != "" {
-									return resource.TestCheckResourceAttr("data.jsonschema_validator.test", "validated", tt.expectedJSON)
+									return resource.TestCheckResourceAttr("data.jsonschema_validator.test", "valid_json", tt.expectedJSON)
 								}
-								return resource.TestCheckResourceAttrSet("data.jsonschema_validator.test", "validated")
+								return resource.TestCheckResourceAttrSet("data.jsonschema_validator.test", "valid_json")
 							}(),
 						),
 					},
@@ -142,7 +142,7 @@ func TestProviderConfiguration(t *testing.T) {
 			{
 				Config: makeProviderConfigTest(schemaFile, docFile),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.jsonschema_validator.test", "validated", `{"test":"value"}`),
+					resource.TestCheckResourceAttr("data.jsonschema_validator.test", "valid_json", `{"test":"value"}`),
 				),
 			},
 		},
@@ -227,9 +227,9 @@ func TestMultipleSchemasInSameDirectory(t *testing.T) {
 						Check: resource.ComposeAggregateTestCheckFunc(
 							func() resource.TestCheckFunc {
 								if tt.expectedJSON != "" {
-									return resource.TestCheckResourceAttr("data.jsonschema_validator.test", "validated", tt.expectedJSON)
+									return resource.TestCheckResourceAttr("data.jsonschema_validator.test", "valid_json", tt.expectedJSON)
 								}
-								return resource.TestCheckResourceAttrSet("data.jsonschema_validator.test", "validated")
+								return resource.TestCheckResourceAttrSet("data.jsonschema_validator.test", "valid_json")
 							}(),
 						),
 					},
@@ -449,9 +449,9 @@ func TestRefOverrides(t *testing.T) {
 	}
 
 	// Check that validation succeeded
-	validated := d.Get("validated").(string)
-	if validated == "" {
-		t.Fatal("Expected validated document, got empty string")
+	validJson := d.Get("valid_json").(string)
+	if validJson == "" {
+		t.Fatal("Expected valid_json document, got empty string")
 	}
 
 	// Check that ID was set

@@ -1,6 +1,16 @@
 # JSON Schema Provider
 
-Terraform provider for validating JSON and JSON5 documents using [JSON Schema](https://json-schema.org/) specifications.
+Terraform provider for validating JSON, JSON5, YAML, and TOML documents using [JSON Schema](https://json-schema.org/) specifications.
+
+> ⚠️ **BREAKING CHANGES in v0.6.0**
+>
+> **Version 0.6.0 introduces breaking API changes for multi-format support:**
+> - `document` field now expects **file path** instead of content (remove `file()` wrapper)
+> - Output field renamed from `validated` to `valid_json`
+> - Added YAML and TOML validation support
+> - New `force_filetype` field to override format detection
+>
+> **Migration:** See [MIGRATION_v0.6.0.md](MIGRATION_v0.6.0.md) for step-by-step guide.
 
 > ⚠️ **WARNING: Version 0.x Development - Breaking Changes Expected**
 >
@@ -10,6 +20,8 @@ Terraform provider for validating JSON and JSON5 documents using [JSON Schema](h
 
 ### Core Capabilities
 
+- **Multi-format Support**: Validate JSON, JSON5, YAML, and TOML documents against JSON Schema
+- **Auto-detection**: Format determined from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`)
 - **JSON5 Support**: Parse and validate both JSON and JSON5 format documents and schemas
 - **Multiple Schema Versions**: Support for JSON Schema Draft 4, 6, 7, 2019-09, and 2020-12
 - **Consistent Output**: Deterministic JSON formatting for stable Terraform state
@@ -51,23 +63,61 @@ provider "jsonschema" {
 
 # Validate a JSON document
 data "jsonschema_validator" "config" {
-  document = file("${path.module}/config.json")
+  document = "${path.module}/config.json"
   schema   = "${path.module}/config.schema.json"
 }
 
-# Use the validated document
+# Access validated document
+locals {
+  config = jsondecode(data.jsonschema_validator.config.valid_json)
+}
+
+# Use validated data in resources
 resource "helm_release" "app" {
   name   = "my-app"
-  values = [data.jsonschema_validator.config.validated]
+  values = [data.jsonschema_validator.config.valid_json]
+}
+```
+
+## Multi-format Examples
+
+### YAML Document Validation
+
+```hcl-terraform
+# Validate Kubernetes manifest (YAML)
+data "jsonschema_validator" "k8s_deployment" {
+  document = "${path.module}/deployment.yaml"  # Auto-detected from .yaml
+  schema   = "${path.module}/k8s-schema.json"
+}
+
+locals {
+  deployment = jsondecode(data.jsonschema_validator.k8s_deployment.valid_json)
+  replicas   = local.deployment.spec.replicas
+}
+```
+
+### TOML Configuration Validation
+
+```hcl-terraform
+# Validate TOML configuration
+data "jsonschema_validator" "app_config" {
+  document = "${path.module}/config.toml"  # Auto-detected from .toml
+  schema   = "${path.module}/config-schema.json"
+}
+
+locals {
+  config = jsondecode(data.jsonschema_validator.app_config.valid_json)
+  port   = local.config.server.port
 }
 ```
 
 ## JSON5 Support Example
 
 ```hcl-terraform
-# Validate a JSON5 document with JSON5 schema
-data "jsonschema_validator" "json5_config" {
-  document = <<-EOT
+# Create a JSON5 document file
+resource "local_file" "json5_config" {
+  filename = "${path.module}/config.json5"
+  content  = <<-EOT
     {
       // JSON5 comments supported
       "name": "my-service",
@@ -77,13 +127,35 @@ data "jsonschema_validator" "json5_config" {
       }
     }
   EOT
-  schema = "${path.module}/service.schema.json5"
+}
+
+# Validate JSON5 document with JSON5 schema
+data "jsonschema_validator" "json5_config" {
+  document = local_file.json5_config.filename
+  schema   = "${path.module}/service.schema.json5"
 }
 ```
 
 ## Advanced Configuration
 
+### Force File Type Override
+
 ```hcl-terraform
+# Override auto-detection for files without standard extensions
+data "jsonschema_validator" "yaml_in_txt" {
+  document       = "${path.module}/data.txt"  # Contains YAML
+  schema         = "${path.module}/schema.json"
+  force_filetype = "yaml"  # Override auto-detection
+}
+
+# Force JSON5 parser for relaxed JSON syntax
+data "jsonschema_validator" "relaxed_json" {
+  document       = "${path.module}/config.json"
+  schema         = "${path.module}/schema.json"
+  force_filetype = "json5"  # Allow trailing commas, comments
+}
+```
+
 ### Schema References
 
 ```hcl-terraform
@@ -91,7 +163,7 @@ data "jsonschema_validator" "json5_config" {
 # For example, if schema is at "/path/to/schemas/main.schema.json"
 # then "$ref": "./types.json" resolves to "/path/to/schemas/types.json"
 data "jsonschema_validator" "with_refs" {
-  document = file("document.json")
+  document = "${path.module}/document.json"
   schema   = "${path.module}/schemas/main.schema.json"  # Contains $ref references
 }
 ```
@@ -102,7 +174,7 @@ Redirect remote `$ref` URLs to local files for offline validation:
 
 ```hcl-terraform
 data "jsonschema_validator" "api_request" {
-  document = file("api-request.json")
+  document = "${path.module}/api-request.json"
   schema   = "${path.module}/schemas/api-request.schema.json"
   
   # Map remote URLs to local files
@@ -127,22 +199,22 @@ See the complete example in `examples/ref_overrides/` directory.
 ```hcl-terraform
 # Override schema version per validation
 data "jsonschema_validator" "legacy_config" {
-  document       = file("legacy-config.json")
-  schema         = "legacy.schema.json"
+  document       = "${path.module}/legacy-config.json"
+  schema         = "${path.module}/legacy.schema.json"
   schema_version = "draft-04"  # Override provider default
 }
 
 # Custom error message template per validation
 data "jsonschema_validator" "detailed_validation" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.yaml"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = "Schema {{.SchemaFile}} failed: {{.FullMessage}}"
 }
 
 # Individual error iteration for multiple validation errors
 data "jsonschema_validator" "individual_errors" {
-  document = file("complex-config.json")
-  schema   = "complex.schema.json"
+  document = "${path.module}/complex-config.toml"
+  schema   = "${path.module}/complex.schema.json"
   error_message_template = "{{range .Errors}}{{.DocumentPath}}: {{.Message}}\n{{end}}"
 }
 ```
@@ -151,13 +223,13 @@ data "jsonschema_validator" "individual_errors" {
 
 ```hcl-terraform
 data "jsonschema_validator" "api_validation" {
-  document       = file("api-config.json")
+  document       = "${path.module}/api-config.json"
   schema         = "${path.module}/schemas/openapi/config.schema.json"
   schema_version = "draft/2019-09"
 }
 
 data "jsonschema_validator" "legacy_validation" {
-  document       = file("legacy-config.json") 
+  document       = "${path.module}/legacy-config.json" 
   schema         = "${path.module}/schemas/legacy/service.schema.json"
   schema_version = "draft-04"
 }
@@ -192,22 +264,22 @@ Customize validation error messages using Go templates:
 ```hcl-terraform
 # Default full message
 data "jsonschema_validator" "config" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.json"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = "{{.FullMessage}}"
 }
 
 # Individual error iteration
 data "jsonschema_validator" "individual_errors" {
-  document = file("api-config.json")
-  schema   = "api.schema.json"
+  document = "${path.module}/api-config.yaml"
+  schema   = "${path.module}/api.schema.json"
   error_message_template = "{{range .Errors}}{{.DocumentPath}}: {{.Message}}\n{{end}}"
 }
 
 # Detailed format with error count
 data "jsonschema_validator" "detailed_format" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.toml"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = <<-EOT
     Found {{.ErrorCount}} validation errors in {{.SchemaFile}}:
     {{range $i, $e := .Errors}}{{add $i 1}}. {{.DocumentPath}}: {{.Message}}
@@ -222,8 +294,8 @@ provider "jsonschema" {
 
 # JSON structured output
 data "jsonschema_validator" "structured_errors" {
-  document = file("config.json")
-  schema   = "config.schema.json"
+  document = "${path.module}/config.json"
+  schema   = "${path.module}/config.schema.json"
   error_message_template = <<-EOT
     {"validation_failed":true,"schema":"{{.SchemaFile}}","error_count":{{.ErrorCount}},"errors":[{{range $i,$e := .Errors}}{{if $i}},{{end}}{"documentPath":"{{.DocumentPath}}","message":"{{.Message}}"}{{end}}]}
   EOT
