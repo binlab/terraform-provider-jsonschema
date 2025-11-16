@@ -2,8 +2,9 @@ package provider
 
 import (
 	"encoding/json"
-	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"testing"
+
+	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )

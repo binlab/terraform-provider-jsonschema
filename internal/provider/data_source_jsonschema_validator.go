@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 

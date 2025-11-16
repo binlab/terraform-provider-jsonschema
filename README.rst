@@ -2,8 +2,8 @@
 terraform-provider-jsonschema
 =============================
 
-.. image:: https://codecov.io/github/iilei/terraform-provider-jsonschema/branch/master/graph/badge.svg
-    :target: https://codecov.io/github/iilei/terraform-provider-jsonschema
+.. image:: https://codecov.io/github/binlab/terraform-provider-jsonschema/branch/master/graph/badge.svg
+    :target: https://codecov.io/github/binlab/terraform-provider-jsonschema
     :alt: Coverage Status
 
 A |terraform|_ provider for validating JSON, JSON5, YAML, and TOML documents using |json-schema|_ specifications.
@@ -76,7 +76,7 @@ On |terraform|_ versions 0.13+ use:
   terraform {
     required_providers {
       jsonschema = {
-        source  = "iilei/jsonschema"
+        source  = "binlab/jsonschema"
         version = "0.6.0"  # Pin to specific version
       }
     }
@@ -93,11 +93,11 @@ Install the ``jsonschema-validator`` CLI for use outside Terraform (Python, Node
 
 .. code-block:: bash
 
-  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+  go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
 
 **Via Release Binary:**
 
-Download pre-built binaries from `GitHub Releases <https://github.com/iilei/terraform-provider-jsonschema/releases>`_
+Download pre-built binaries from `GitHub Releases <https://github.com/binlab/terraform-provider-jsonschema/releases>`_
 
 
 Quick Start
@@ -431,17 +431,17 @@ Install the CLI tool first:
 .. code-block:: bash
 
   # Install latest version
-  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+  go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
   
   # Or install specific version
-  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.5.0
+  go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.5.0
 
 **Add to .pre-commit-config.yaml:**
 
 .. code-block:: yaml
 
   repos:
-    - repo: https://github.com/iilei/terraform-provider-jsonschema
+    - repo: https://github.com/binlab/terraform-provider-jsonschema
       rev: v0.6.0
       hooks:
         - id: jsonschema-validator
@@ -460,7 +460,7 @@ Python project with ``pyproject.toml``:
 
   # .pre-commit-config.yaml
   repos:
-    - repo: https://github.com/iilei/terraform-provider-jsonschema
+    - repo: https://github.com/binlab/terraform-provider-jsonschema
       rev: v0.6.0
       hooks:
         - id: jsonschema-validator
@@ -472,7 +472,7 @@ Multi-language project with explicit config:
 
   # .pre-commit-config.yaml
   repos:
-    - repo: https://github.com/iilei/terraform-provider-jsonschema
+    - repo: https://github.com/binlab/terraform-provider-jsonschema
       rev: v0.6.0
       hooks:
         - id: jsonschema-validator
@@ -507,7 +507,7 @@ CI/CD Integration
             go-version: '1.23'
         
         - name: Install jsonschema-validator
-          run: go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+          run: go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
         
         - name: Validate JSON files
           run: jsonschema-validator  # Uses .jsonschema-validator.yaml
@@ -520,7 +520,7 @@ CI/CD Integration
     image: golang:1.23
     stage: test
     script:
-      - go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+      - go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
       - jsonschema-validator  # Uses .jsonschema-validator.yaml
 
 Exit Codes
@@ -555,7 +555,7 @@ Requirements: |go|_ 1.25+
 .. _terraform-install-plugin: https://www.terraform.io/docs/plugins/basics.html#installing-a-plugin
 
 .. |user-docs| replace:: User Documentation  
-.. _user-docs: https://registry.terraform.io/providers/iilei/jsonschema/latest/docs
+.. _user-docs: https://registry.terraform.io/providers/binlab/jsonschema/latest/docs
 
 .. |json-schema| replace:: json-schema
 .. _json-schema: https://json-schema.org/
