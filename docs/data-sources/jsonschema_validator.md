@@ -8,12 +8,12 @@ The `jsonschema_validator` data source validates JSON, JSON5, YAML, and TOML doc
 
 **The `document` field now expects a file path instead of raw content.**
 
-| Aspect | Old (v0.5.x) | New (v0.6.0+) |
-|--------|--------------|---------------|
-| `document` field | Raw content via `file()` function | File path (string) |
-| Supported formats | JSON, JSON5 | JSON, JSON5, YAML, TOML |
-| Format detection | N/A | Auto-detect from extension |
-| Output field | `validated` | `valid_json` |
+| Aspect            | Old (v0.5.x)                      | New (v0.6.0+)              |
+| ----------------- | --------------------------------- | -------------------------- |
+| `document` field  | Raw content via `file()` function | File path (string)         |
+| Supported formats | JSON, JSON5                       | JSON, JSON5, YAML, TOML    |
+| Format detection  | N/A                               | Auto-detect from extension |
+| Output field      | `validated`                       | `valid_json`               |
 
 **Migration Required:**
 
@@ -46,11 +46,11 @@ locals {
 
 **Template variable names have been clarified for better understanding:**
 
-| Old Name (deprecated) | New Name | Description |
-|----------------------|----------|-------------|
-| `{{.Schema}}` | `{{.SchemaFile}}` | Path to the schema file |
-| `{{.Path}}` | `{{.DocumentPath}}` | JSON Pointer to location in document |
-| `{{.SchemaPath}}` | `{{.SchemaPath}}` | *(unchanged)* JSON Pointer to schema constraint |
+| Old Name (deprecated) | New Name            | Description                                     |
+| --------------------- | ------------------- | ----------------------------------------------- |
+| `{{.Schema}}`         | `{{.SchemaFile}}`   | Path to the schema file                         |
+| `{{.Path}}`           | `{{.DocumentPath}}` | JSON Pointer to location in document            |
+| `{{.SchemaPath}}`     | `{{.SchemaPath}}`   | _(unchanged)_ JSON Pointer to schema constraint |
 
 ### Scope of Changes
 
@@ -61,6 +61,7 @@ These variable renames **only affect** custom `error_message_template` configura
 Update all instances of `error_message_template` (in provider configuration or data source attributes):
 
 **Before (v0.4.x):**
+
 ```hcl
 data "jsonschema_validator" "example" {
   document = file("config.json")
@@ -76,6 +77,7 @@ data "jsonschema_validator" "example" {
 ```
 
 **After (v0.5.0+):**
+
 ```hcl
 data "jsonschema_validator" "example" {
   document = file("config.json")
@@ -91,6 +93,7 @@ data "jsonschema_validator" "example" {
 ```
 
 **Summary:**
+
 - Replace `{{.Schema}}` → `{{.SchemaFile}}`
 - Replace `{{.Path}}` → `{{.DocumentPath}}`
 - All other variables (`{{.SchemaPath}}`, `{{.Message}}`, `{{.Value}}`, `{{.ErrorCount}}`, etc.) remain unchanged
@@ -109,6 +112,77 @@ data "jsonschema_validator" "config" {
 locals {
   config = jsondecode(data.jsonschema_validator.config.valid_json)
   app_name = local.config.application.name
+}
+```
+
+### Inline Validation (v0.7.0+)
+
+The `document_content` and `schema_content` arguments allow you to provide document and schema content directly as strings in your HCL code. This is particularly useful for dynamically generated content or when you want to avoid managing separate files.
+
+**Why Use Inline Content?**
+
+1.  **Validating Terraform Objects**: Directly validate the structure of complex Terraform objects (e.g., `locals`, `variables`, `outputs`) without first writing them to a file. This is crucial when you want to apply schema validation to data structures native to your Terraform configuration.
+2.  **`tfvars` and Dynamic Data**: Seamlessly validate `tfvars` content or other dynamically generated data structures within your configuration. For instance, if you're constructing a JSON string from multiple Terraform variables, you can validate its structure directly.
+3.  **HCL-Defined Schemas**: Define simple or reusable schemas directly within your HCL code, leveraging Terraform's templating capabilities for schema generation. This reduces the need for external `.json` or `.yaml` schema files for straightforward validations.
+4.  **Reduced File Management**: For small, self-contained validations, inline content avoids the overhead of creating and managing temporary files, simplifying your project structure.
+5.  **Simplified CI/CD**: In CI/CD pipelines, you might generate configuration data on the fly. Inline validation allows you to immediately validate this generated data without intermediate file system operations.
+
+```hcl-terraform
+locals {
+  # Example Terraform object to validate
+  my_service_config = {
+    service_name = "api-gateway"
+    port         = 8080
+    enabled      = true
+    tags         = ["microservice", "public"]
+  }
+}
+
+data "jsonschema_validator" "inline_service_config" {
+  # Document content from a Terraform local variable, encoded as JSON
+  document_content = jsonencode(local.my_service_config)
+
+  # Schema content defined inline using a heredoc
+  schema_content = <<-EOT
+    {
+      "$schema": "http://json-schema.org/draft/2020-12/schema",
+      "title": "Service Configuration Schema",
+      "description": "Schema for microservice configuration objects",
+      "type": "object",
+      "properties": {
+        "service_name": {
+          "type": "string",
+          "description": "Name of the service"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port on which the service listens"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the service is enabled"
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of tags associated with the service"
+        }
+      },
+      "required": ["service_name", "port", "enabled"],
+      "additionalProperties": false
+    }
+  EOT
+
+  # The force_filetype argument is also applicable to inline content.
+  # For example, if document_content contains YAML, you can set force_filetype = "yaml".
+  force_filetype = "json" # Ensure content is parsed as JSON
+}
+
+output "validated_service_config" {
+  description = "The validated service configuration object"
+  value       = jsondecode(data.jsonschema_validator.inline_service_config.valid_json)
 }
 ```
 
@@ -292,30 +366,33 @@ data "jsonschema_validator" "json_format" {
 
 ## Argument Reference
 
-* `document` (Required) - **Path to document file** to validate. Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`).
-* `schema` (Required) - Path to JSON or JSON5 schema file. Format auto-detected from extension.
-* `force_filetype` (Optional) - Override automatic file type detection for the document. Valid values: `"json"`, `"json5"`, `"yaml"`, `"toml"`. Use when file extension doesn't match content format (e.g., `.txt` file containing YAML).
-* `schema_version` (Optional) - Schema version override (`"draft-04"` to `"draft/2020-12"`).
-* `error_message_template` (Optional) - Custom Go template for error messages. Available variables: `{{.SchemaFile}}`, `{{.Document}}`, `{{.FullMessage}}`, `{{.Errors}}`, `{{.ErrorCount}}`.
-* `ref_overrides` (Optional) - Map of remote schema URLs to local file paths. Redirects `$ref` references from remote URLs to local files, enabling offline validation.
+- `document` (Optional) - Path to document file to validate. Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`). Must provide exactly one of `document` or `document_content`.
+- `document_content` (Optional) - Inline content of the document (string). Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from content. Must provide exactly one of `document` or `document_content`.
+- `schema` (Optional) - Path to JSON or JSON5 schema file. Format auto-detected from extension. Must provide exactly one of `schema` or `schema_content`.
+- `schema_content` (Optional) - Inline content of the schema (string). Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from content. Must provide exactly one of `schema` or `schema_content`.
+- `force_filetype` (Optional) - Override automatic file type detection for the document. Valid values: `"json"`, `"json5"`, `"yaml"`, `"toml"`. Use when file extension doesn't match content format (e.g., `.txt` file containing YAML).
+- `schema_version` (Optional) - Schema version override (`"draft-04"` to `"draft/2020-12"`).
+- `error_message_template` (Optional) - Custom Go template for error messages. Available variables: `{{.SchemaFile}}`, `{{.Document}}`, `{{.FullMessage}}`, `{{.Errors}}`, `{{.ErrorCount}}`.
+- `ref_overrides` (Optional) - Map of remote schema URLs to local file paths. Redirects `$ref` references from remote URLs to local files, enabling offline validation.
 
 ## Attributes Reference
 
-* `valid_json` - The validated document in canonical JSON format. Only set when validation succeeds. Contains the document parsed, validated, and re-serialized as standard JSON with resolved `$ref` references. Use `jsondecode()` to access as Terraform objects.
+- `valid_json` - The validated document in canonical JSON format. Only set when validation succeeds. Contains the document parsed, validated, and re-serialized as standard JSON with resolved `$ref` references. Use `jsondecode()` to access as Terraform objects.
 
 ## File Format Support
 
 The provider automatically detects document format from file extension:
 
-| Extension | Format | Parser |
-|-----------|--------|--------|
-| `.json` | JSON | JSON5 (backward compatible) |
-| `.json5` | JSON5 | JSON5 (comments, trailing commas, unquoted keys) |
-| `.yaml`, `.yml` | YAML | YAML 1.2 (superset of JSON) |
-| `.toml` | TOML | TOML v1.0.0 |
-| Other | JSON5 | Fallback to JSON5 for unknown extensions |
+| Extension       | Format | Parser                                           |
+| --------------- | ------ | ------------------------------------------------ |
+| `.json`         | JSON   | JSON5 (backward compatible)                      |
+| `.json5`        | JSON5  | JSON5 (comments, trailing commas, unquoted keys) |
+| `.yaml`, `.yml` | YAML   | YAML 1.2 (superset of JSON)                      |
+| `.toml`         | TOML   | TOML v1.0.0                                      |
+| Other           | JSON5  | Fallback to JSON5 for unknown extensions         |
 
 **Format Override**: Use `force_filetype` to override detection when:
+
 - File has no extension or wrong extension
 - You want to use JSON5 parser for relaxed JSON syntax
 - Testing different format parsers
@@ -344,6 +421,7 @@ The `ref_overrides` parameter allows you to redirect remote schema URLs to local
 ### How It Works
 
 When the schema compiler encounters a `$ref` to a URL:
+
 1. First checks if the URL exists in `ref_overrides` (uses local file if found)
 2. If not found, uses the default loader (file:// URLs)
 3. Results are cached for subsequent references
@@ -377,6 +455,7 @@ The `$ref` will resolve to the local file instead of attempting to fetch from th
 For a complete example, see `examples/ref_overrides/` in the provider repository.
 
 ## JSON5 Features Supported
+
 ## Document Format Support
 
 Documents and schemas support multiple formats:
@@ -436,6 +515,7 @@ Each error in `{{.Errors}}` contains:
 **About Paths:**
 
 - **DocumentPath**: Uses [JSON Pointer](https://datatracker.ietf.org/doc/html/rfc6901) syntax (RFC 6901). Empty string `""` represents the root of the document.
+
   - Examples: `""` (root), `/port` (top-level property), `/users/0/email` (nested array element)
 
 - **SchemaPath**: Contains the full resolved `file://` URI plus JSON Pointer fragment to the exact constraint that failed.
@@ -445,6 +525,7 @@ Each error in `{{.Errors}}` contains:
   - Useful for debugging: tells you exactly which file and which constraint failed
 
 **About JSON Pointer:** Path values use [JSON Pointer](https://datatracker.ietf.org/doc/html/rfc6901) syntax, the standard format used by JSON Schema validators. Per RFC 6901:
+
 - Empty string `""` represents the whole document (root)
 - Paths starting with `/` reference nested fields (e.g., `/email` for top-level `email` field)
 - Array indices are numbers (e.g., `/items/0` for the first item)
