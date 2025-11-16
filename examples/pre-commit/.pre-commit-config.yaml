@@ -2,8 +2,8 @@
 # This shows different ways to use the validator as a pre-commit hook
 
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
-    rev: v0.1.0  # Use the latest version from releases
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
+    rev: v0.1.0 # Use the latest version from releases
     hooks:
       # Example 1: Validate with explicit schema path
       - id: jsonschema-validator
@@ -35,12 +35,11 @@ repos:
           - schemas/product.schema.json
           - --verbose
         files: ^data/products/.*\.json$
-
 # Note: The hook runs in 'manual' stage by default
 # Run with: pre-commit run jsonschema-validator --hook-stage manual --all-files
 # Or configure to run on commit:
 # repos:
-#   - repo: https://github.com/iilei/terraform-provider-jsonschema
+#   - repo: https://github.com/binlab/terraform-provider-jsonschema
 #     rev: v0.1.0
 #     hooks:
 #       - id: jsonschema-validator

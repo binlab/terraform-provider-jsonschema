@@ -6,11 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/binlab/terraform-provider-jsonschema/pkg/config"
+	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/spf13/pflag"
-
-	"github.com/iilei/terraform-provider-jsonschema/pkg/config"
-	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 )
 
 const (

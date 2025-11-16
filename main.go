@@ -5,9 +5,8 @@ import (
 	"flag"
 	"log"
 
+	"github.com/binlab/terraform-provider-jsonschema/internal/provider"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-
-	"github.com/iilei/terraform-provider-jsonschema/internal/provider"
 )
 
 // These variables are set by GoReleaser via ldflags
@@ -32,7 +31,7 @@ func main() {
 	opts := &plugin.ServeOpts{ProviderFunc: provider.New(version)}
 
 	if debugMode {
-		err := plugin.Debug(context.Background(), "registry.terraform.io/providers/iilei/jsonschema", opts)
+		err := plugin.Debug(context.Background(), "registry.terraform.io/providers/binlab/jsonschema", opts)
 		if err != nil {
 			log.Fatal(err.Error())
 		}

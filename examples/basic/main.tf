@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     jsonschema = {
-      source  = "iilei/jsonschema"
+      source  = "binlab/jsonschema"
       version = "0.0.0-dev" // replace this with actual latest version
     }
   }
@@ -99,10 +99,10 @@ output "traverse_demo_summary" {
   value = {
     schema_structure = {
       main_schema = "config.schema.json (has $id with relative path)"
-      references = "test.schema.json via $ref with directory traversal"
-      note = "SchemaPath shows resolved file:// URI, not the $id value"
+      references  = "test.schema.json via $ref with directory traversal"
+      note        = "SchemaPath shows resolved file:// URI, not the $id value"
     }
     valid_document = data.jsonschema_validator.traverse_demo_valid.valid_json
-    demo_purpose = "See how SchemaFile and SchemaPath differ in error output"
+    demo_purpose   = "See how SchemaFile and SchemaPath differ in error output"
   }
 }
