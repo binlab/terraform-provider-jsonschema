@@ -7,7 +7,7 @@ This directory contains examples of how to use `jsonschema-validator` with pre-c
 Install the CLI tool first:
 
 ```bash
-go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
 ```
 
 Verify installation:
@@ -22,8 +22,8 @@ jsonschema-validator --version
 
 ```yaml
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
-    rev: v0.1.0  # Use latest release
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
+    rev: v0.1.0 # Use latest release
     hooks:
       - id: jsonschema-validator
         args:
@@ -59,7 +59,7 @@ If you have a `.jsonschema-validator.yaml` or `pyproject.toml` in your project:
 
 ```yaml
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.1.0
     hooks:
       - id: jsonschema-validator
@@ -73,7 +73,7 @@ Validate different file patterns with different schemas:
 
 ```yaml
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.1.0
     hooks:
       - id: jsonschema-validator
@@ -93,7 +93,7 @@ Use a custom environment variable prefix:
 
 ```yaml
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.1.0
     hooks:
       - id: jsonschema-validator
@@ -113,13 +113,13 @@ By default, the hook uses `stages: [manual]` to avoid interfering with normal co
 
 ```yaml
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.1.0
     hooks:
       - id: jsonschema-validator
         args: [--schema, schemas/my-schema.json]
         files: ^data/.*\.json$
-        stages: [commit]  # Run on every commit
+        stages: [commit] # Run on every commit
 ```
 
 ## Troubleshooting
@@ -129,12 +129,13 @@ repos:
 The CLI tool is not installed or not in PATH. Install it:
 
 ```bash
-go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
 ```
 
 ### Hook Not Running
 
 Check that:
+
 1. The hook ID matches (use `jsonschema-validator` not `jsonschema-validator-env`)
 2. The stage is correct (use `--hook-stage manual` or configure `stages: [commit]`)
 3. File patterns match your target files
@@ -144,7 +145,7 @@ Check that:
 Use relative paths from your project root:
 
 ```yaml
-args: [--schema, schemas/my-schema.json]  # ✓ Correct
+args: [--schema, schemas/my-schema.json] # ✓ Correct
 # Not: args: [--schema, ./schemas/my-schema.json]  # ✗ May fail
 ```
 

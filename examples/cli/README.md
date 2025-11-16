@@ -6,7 +6,7 @@ This directory contains example configurations for the `jsonschema-validator` CL
 
 - **`.jsonschema-validator.yaml`** - Standalone configuration file (recommended)
 - **`pyproject.toml.example`** - Configuration for Python projects
-- **`package.json.example`** - Configuration for Node.js projects  
+- **`package.json.example`** - Configuration for Node.js projects
 - **`.pre-commit-config.yaml.example`** - Pre-commit hook configurations
 
 ## Quick Start
@@ -48,9 +48,7 @@ Add the configuration from `package.json.example` to your `package.json`:
 {
   "jsonschema-validator": {
     "schemaVersion": "draft/2020-12",
-    "schemas": [
-      {"path": "config.schema.json", "documents": ["config.json"]}
-    ]
+    "schemas": [{ "path": "config.schema.json", "documents": ["config.json"] }]
   }
 }
 ```
@@ -67,7 +65,7 @@ Add configuration from `.pre-commit-config.yaml.example` to your `.pre-commit-co
 
 ```yaml
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator
@@ -89,7 +87,7 @@ All configuration options match the Terraform provider for consistency:
 Specify the JSON Schema draft version:
 
 ```yaml
-schema_version: "draft/2020-12"  # or draft/2019-09, draft-7, draft-6, draft-4
+schema_version: "draft/2020-12" # or draft/2019-09, draft-7, draft-6, draft-4
 ```
 
 ### Schema-Document Mappings
@@ -100,9 +98,9 @@ Define which schemas validate which documents:
 schemas:
   - path: "config.schema.json"
     documents:
-      - "config.json"          # Single file
-      - "config.*.json"        # Glob pattern
-      - "configs/**/*.json"    # Recursive glob
+      - "config.json" # Single file
+      - "config.*.json" # Glob pattern
+      - "configs/**/*.json" # Recursive glob
 ```
 
 ### Reference Overrides
@@ -118,6 +116,7 @@ schemas:
 ```
 
 **Use cases:**
+
 - Offline validation (no internet required)
 - Air-gapped environments
 - Version-controlled schemas
@@ -135,6 +134,7 @@ error_template: |
 ```
 
 **Available variables:**
+
 - `{{.FullMessage}}` - Complete formatted error
 - `{{.ErrorCount}}` - Number of errors
 - `{{.Errors}}` - Array of errors
@@ -202,6 +202,7 @@ schemas:
 ```
 
 **JSON5 features supported:**
+
 - Comments (`//` and `/* */`)
 - Trailing commas
 - Unquoted keys
@@ -216,7 +217,7 @@ schemas:
 ```yaml
 - name: Validate JSON files
   run: |
-    go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+    go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
     jsonschema-validator
 ```
 
@@ -225,7 +226,7 @@ schemas:
 ```yaml
 validate-json:
   script:
-    - go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+    - go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
     - jsonschema-validator
 ```
 

@@ -4,23 +4,25 @@ This guide helps you migrate from v0.5.x to v0.6.0, which introduces breaking ch
 
 ## Breaking Changes Summary
 
-| Change | v0.5.x | v0.6.0 |
-|--------|--------|--------|
-| **document field** | Raw content via `file()` | File path (string) |
-| **Output field** | `validated` | `valid_json` |
-| **Supported formats** | JSON, JSON5 | JSON, JSON5, YAML, TOML |
-| **Format detection** | N/A | Auto-detect from extension |
-| **Force override** | N/A | `force_filetype` field |
+| Change                | v0.5.x                   | v0.6.0                     |
+| --------------------- | ------------------------ | -------------------------- |
+| **document field**    | Raw content via `file()` | File path (string)         |
+| **Output field**      | `validated`              | `valid_json`               |
+| **Supported formats** | JSON, JSON5              | JSON, JSON5, YAML, TOML    |
+| **Format detection**  | N/A                      | Auto-detect from extension |
+| **Force override**    | N/A                      | `force_filetype` field     |
 
 ## Why These Changes?
 
 ### File Path API
+
 - **Cleaner syntax**: No need for `file()` wrapper function
 - **Format detection**: Automatically detect YAML/TOML from extension
 - **Better error messages**: Can report file path in errors
 - **Consistency**: Schema already used file path, now document does too
 
 ### Renamed Output Field
+
 - **Clarity**: `valid_json` makes it clear the output is JSON format (not boolean)
 - **Consistency**: Output is always JSON regardless of input format (YAML/TOML → JSON)
 
@@ -32,7 +34,7 @@ This guide helps you migrate from v0.5.x to v0.6.0, which introduces breaking ch
 terraform {
   required_providers {
     jsonschema = {
-      source  = "iilei/jsonschema"
+      source  = "binlab/jsonschema"
 -     version = "0.5.0"
 +     version = "0.6.0"
     }
@@ -43,6 +45,7 @@ terraform {
 ### Step 2: Remove `file()` Wrapper from `document`
 
 **Before (v0.5.x):**
+
 ```hcl
 data "jsonschema_validator" "config" {
   document = file("${path.module}/config.json")
@@ -51,6 +54,7 @@ data "jsonschema_validator" "config" {
 ```
 
 **After (v0.6.0):**
+
 ```hcl
 data "jsonschema_validator" "config" {
   document = "${path.module}/config.json"
@@ -61,6 +65,7 @@ data "jsonschema_validator" "config" {
 ### Step 3: Rename `validated` to `valid_json`
 
 **Before (v0.5.x):**
+
 ```hcl
 locals {
   config = jsondecode(data.jsonschema_validator.config.validated)
@@ -72,6 +77,7 @@ output "validated_config" {
 ```
 
 **After (v0.6.0):**
+
 ```hcl
 locals {
   config = jsondecode(data.jsonschema_validator.config.valid_json)
@@ -87,6 +93,7 @@ output "validated_config" {
 Use find/replace across your `.tf` files:
 
 1. **Remove file() wrapper:**
+
    - Find: `document = file("`
    - Replace: `document = "`
 
@@ -160,13 +167,13 @@ data "jsonschema_validator" "relaxed" {
 
 ## Format Detection Rules
 
-| File Extension | Detected Format | Parser |
-|----------------|----------------|--------|
-| `.json` | JSON | JSON5 (backward compatible) |
-| `.json5` | JSON5 | JSON5 (comments, trailing commas) |
-| `.yaml`, `.yml` | YAML | YAML 1.2 (superset of JSON) |
-| `.toml` | TOML | TOML v1.0.0 |
-| Other | JSON5 | Fallback for unknown extensions |
+| File Extension  | Detected Format | Parser                            |
+| --------------- | --------------- | --------------------------------- |
+| `.json`         | JSON            | JSON5 (backward compatible)       |
+| `.json5`        | JSON5           | JSON5 (comments, trailing commas) |
+| `.yaml`, `.yml` | YAML            | YAML 1.2 (superset of JSON)       |
+| `.toml`         | TOML            | TOML v1.0.0                       |
+| Other           | JSON5           | Fallback for unknown extensions   |
 
 **Note:** YAML parser can parse JSON (YAML ⊃ JSON), but JSON parser cannot parse YAML.
 
@@ -175,6 +182,7 @@ data "jsonschema_validator" "relaxed" {
 ### Issue: "Error: Invalid function argument"
 
 **Error:**
+
 ```
 Error: Invalid function argument
   on main.tf line 10, in data "jsonschema_validator" "config":
@@ -182,6 +190,7 @@ Error: Invalid function argument
 ```
 
 **Solution:** Remove the `file()` wrapper:
+
 ```hcl
 - document = file("${path.module}/config.json")
 + document = "${path.module}/config.json"
@@ -190,6 +199,7 @@ Error: Invalid function argument
 ### Issue: "Attribute 'validated' not found"
 
 **Error:**
+
 ```
 Error: Unsupported attribute
   on main.tf line 15, in locals:
@@ -197,6 +207,7 @@ Error: Unsupported attribute
 ```
 
 **Solution:** Rename to `valid_json`:
+
 ```hcl
 - config = jsondecode(data.jsonschema_validator.config.validated)
 + config = jsondecode(data.jsonschema_validator.config.valid_json)
@@ -207,12 +218,14 @@ Error: Unsupported attribute
 **Problem:** YAML document being parsed as JSON
 
 **Solution 1:** Use `.yaml` or `.yml` extension (auto-detected)
+
 ```hcl
 # Rename file: config.json → config.yaml
 document = "${path.module}/config.yaml"
 ```
 
 **Solution 2:** Use `force_filetype` override
+
 ```hcl
 document       = "${path.module}/config.txt"
 force_filetype = "yaml"
@@ -223,11 +236,13 @@ force_filetype = "yaml"
 If you need to rollback:
 
 1. **Restore file() wrapper:**
+
    ```hcl
    document = file("${path.module}/config.json")
    ```
 
 2. **Restore validated field:**
+
    ```hcl
    locals {
      config = jsondecode(data.jsonschema_validator.config.validated)
@@ -235,11 +250,12 @@ If you need to rollback:
    ```
 
 3. **Downgrade provider version:**
+
    ```hcl
    terraform {
      required_providers {
        jsonschema = {
-         source  = "iilei/jsonschema"
+         source  = "binlab/jsonschema"
          version = "0.5.0"
        }
      }
@@ -300,16 +316,16 @@ data "jsonschema_validator" "test_toml" {
 
 - **Documentation**: See [docs/data-sources/jsonschema_validator.md](data-sources/jsonschema_validator.md)
 - **Examples**: Check [examples/](../examples/) directory
-- **Issues**: Report issues at https://github.com/iilei/terraform-provider-jsonschema/issues
+- **Issues**: Report issues at https://github.com/binlab/terraform-provider-jsonschema/issues
 
 ## Summary
 
-| Task | Command/Action |
-|------|----------------|
-| Update provider version | Change `version = "0.5.0"` to `"0.6.0"` |
-| Remove file() wrapper | `document = file("...")` → `document = "..."` |
-| Rename output field | `.validated` → `.valid_json` |
-| Reinitialize Terraform | `terraform init -upgrade` |
-| Test changes | `terraform plan` then `terraform apply` |
+| Task                    | Command/Action                                |
+| ----------------------- | --------------------------------------------- |
+| Update provider version | Change `version = "0.5.0"` to `"0.6.0"`       |
+| Remove file() wrapper   | `document = file("...")` → `document = "..."` |
+| Rename output field     | `.validated` → `.valid_json`                  |
+| Reinitialize Terraform  | `terraform init -upgrade`                     |
+| Test changes            | `terraform plan` then `terraform apply`       |
 
 The migration is straightforward: **remove `file()` wrapper** and **rename `.validated` to `.valid_json`**. The benefits are cleaner syntax and support for YAML/TOML validation!

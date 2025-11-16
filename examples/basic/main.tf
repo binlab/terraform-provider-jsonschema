@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     jsonschema = {
-      source  = "iilei/jsonschema"
+      source  = "binlab/jsonschema"
       version = "0.0.0-dev" // replace this with actual latest version
     }
   }
@@ -23,7 +23,7 @@ output "validated_config" {
 data "jsonschema_validator" "config_with_template" {
   document = "${path.module}/valid-config.json"
   schema   = "${path.module}/config.schema.json"
-  
+
   error_message_template = <<-EOT
     Validation failed ({{.ErrorCount}} errors):
     {{range .Errors}}• {{.DocumentPath}}: {{.Message}}
@@ -47,7 +47,7 @@ data "jsonschema_validator" "config_with_template" {
 data "jsonschema_validator" "traverse_demo_valid" {
   document = "${path.module}/traverse-demo-valid.json"
   schema   = "${path.module}/schemas/traverse_tree_demo/main_schema/config.schema.json"
-  
+
   error_message_template = <<-EOT
     ✅ Document is VALID
     Schema File: {{.SchemaFile}}
@@ -58,7 +58,7 @@ data "jsonschema_validator" "traverse_demo_valid" {
 data "jsonschema_validator" "traverse_demo_invalid" {
   document = "${path.module}/traverse-demo-invalid.json"
   schema   = "${path.module}/schemas/traverse_tree_demo/main_schema/config.schema.json"
-  
+
   error_message_template = <<-EOT
     ═══════════════════════════════════════════════════════════════
     ❌ VALIDATION ERRORS - Schema Traversal Demo
@@ -99,10 +99,10 @@ output "traverse_demo_summary" {
   value = {
     schema_structure = {
       main_schema = "config.schema.json (has $id with relative path)"
-      references = "test.schema.json via $ref with directory traversal"
-      note = "SchemaPath shows resolved file:// URI, not the $id value"
+      references  = "test.schema.json via $ref with directory traversal"
+      note        = "SchemaPath shows resolved file:// URI, not the $id value"
     }
     valid_document = data.jsonschema_validator.traverse_demo_valid.valid_json
-    demo_purpose = "See how SchemaFile and SchemaPath differ in error output"
+    demo_purpose   = "See how SchemaFile and SchemaPath differ in error output"
   }
 }
