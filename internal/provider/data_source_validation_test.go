@@ -1,7 +1,7 @@
 package provider
 
 import (
-validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
+	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
 	"testing"
 )
 
@@ -15,10 +15,10 @@ func TestDataSourceValidationLogic(t *testing.T) {
 		expectedResult string
 	}{
 		{
-			name:           "valid config creation",
-			document:       `{"test": "value"}`,
-			schemaVersion:  "draft-07",
-			expectError:    false,
+			name:          "valid config creation",
+			document:      `{"test": "value"}`,
+			schemaVersion: "draft-07",
+			expectError:   false,
 		},
 		{
 			name:          "invalid schema version",
@@ -27,9 +27,9 @@ func TestDataSourceValidationLogic(t *testing.T) {
 			expectError:   true,
 		},
 		{
-			name:        "JSON5 document parsing",
-			document:    `{test: "value", /* comment */}`,
-			expectError: false,
+			name:           "JSON5 document parsing",
+			document:       `{test: "value", /* comment */}`,
+			expectError:    false,
 			expectedResult: `{"test":"value"}`,
 		},
 		{
@@ -80,10 +80,10 @@ func TestDataSourceValidationLogic(t *testing.T) {
 
 func TestDataSourceSchemaStructure(t *testing.T) {
 	ds := dataSourceJsonschemaValidator()
-	
+
 	// Test that all required fields are present in the schema
 	expectedFields := []string{"document", "schema", "schema_version", "error_message_template"}
-	
+
 	for _, field := range expectedFields {
 		if _, ok := ds.Schema[field]; !ok {
 			t.Errorf("expected field %q to be present in data source schema", field)
@@ -104,13 +104,13 @@ func TestDataSourceSchemaStructure(t *testing.T) {
 // Mock helper for testing configuration combinations
 func TestConfigurationOverrides(t *testing.T) {
 	tests := []struct {
-		name                    string
-		providerSchemaVersion   string
-		providerErrorTemplate   string
-		resourceSchemaVersion   string
-		resourceErrorTemplate   string
-		expectedSchemaVersion   string
-		expectedErrorTemplate   string
+		name                  string
+		providerSchemaVersion string
+		providerErrorTemplate string
+		resourceSchemaVersion string
+		resourceErrorTemplate string
+		expectedSchemaVersion string
+		expectedErrorTemplate string
 	}{
 		{
 			name:                  "provider defaults only",

@@ -31,50 +31,50 @@ func Test_dataSourceJsonschemaValidatorRead(t *testing.T) {
 	}
 
 	var cases = []struct {
-		name          string
-		documentContent string
+		name             string
+		documentContent  string
 		documentFileName string
-		schemaFile    string
-		errorExpected bool
-		expectedJSON  string
+		schemaFile       string
+		errorExpected    bool
+		expectedJSON     string
 	}{
 		{
-			name:          "invalid document",
-			documentContent: "asd asdasd: ^%^*&^%",
+			name:             "invalid document",
+			documentContent:  "asd asdasd: ^%^*&^%",
 			documentFileName: "invalid.txt",
-			schemaFile:    schemaFile,
-			errorExpected: true,
+			schemaFile:       schemaFile,
+			errorExpected:    true,
 		},
 		{
-			name:          "empty object fails required validation",
-			documentContent: "{}",
+			name:             "empty object fails required validation",
+			documentContent:  "{}",
 			documentFileName: "empty.json",
-			schemaFile:    schemaFile,
-			errorExpected: true,
+			schemaFile:       schemaFile,
+			errorExpected:    true,
 		},
 		{
-			name:          "valid document",
-			documentContent: `{"test": "test"}`,
+			name:             "valid document",
+			documentContent:  `{"test": "test"}`,
 			documentFileName: "valid.json",
-			schemaFile:    schemaFile,
-			errorExpected: false,
-			expectedJSON:  `{"test":"test"}`,
+			schemaFile:       schemaFile,
+			errorExpected:    false,
+			expectedJSON:     `{"test":"test"}`,
 		},
 		{
-			name:          "JSON5 document with comments",
-			documentContent: `{"test": "test", /* comment */ }`,
+			name:             "JSON5 document with comments",
+			documentContent:  `{"test": "test", /* comment */ }`,
 			documentFileName: "valid.json5",
-			schemaFile:    schemaFile,
-			errorExpected: false,
-			expectedJSON:  `{"test":"test"}`,
+			schemaFile:       schemaFile,
+			errorExpected:    false,
+			expectedJSON:     `{"test":"test"}`,
 		},
 		{
-			name:          "JSON5 schema with JSON document",
-			documentContent: `{"name": "example", "age": 25}`,
+			name:             "JSON5 schema with JSON document",
+			documentContent:  `{"name": "example", "age": 25}`,
 			documentFileName: "person.json",
-			schemaFile:    json5SchemaFile,
-			errorExpected: false,
-			expectedJSON:  `{"age":25,"name":"example"}`,
+			schemaFile:       json5SchemaFile,
+			errorExpected:    false,
+			expectedJSON:     `{"age":25,"name":"example"}`,
 		},
 	}
 
@@ -171,42 +171,42 @@ func TestMultipleSchemasInSameDirectory(t *testing.T) {
 	}
 
 	var cases = []struct {
-		name          string
-		documentContent string
+		name             string
+		documentContent  string
 		documentFileName string
-		schemaFile    string
-		errorExpected bool
-		expectedJSON  string
+		schemaFile       string
+		errorExpected    bool
+		expectedJSON     string
 	}{
 		{
-			name:          "validate user document",
-			documentContent: `{"name": "John", "email": "john@example.com"}`,
+			name:             "validate user document",
+			documentContent:  `{"name": "John", "email": "john@example.com"}`,
 			documentFileName: "user.json",
-			schemaFile:    schema1File,
-			errorExpected: false,
-			expectedJSON:  `{"email":"john@example.com","name":"John"}`,
+			schemaFile:       schema1File,
+			errorExpected:    false,
+			expectedJSON:     `{"email":"john@example.com","name":"John"}`,
 		},
 		{
-			name:          "validate product document",
-			documentContent: `{"sku": "ABC123", "price": 99.99}`,
+			name:             "validate product document",
+			documentContent:  `{"sku": "ABC123", "price": 99.99}`,
 			documentFileName: "product.json",
-			schemaFile:    schema2File,
-			errorExpected: false,
-			expectedJSON:  `{"price":99.99,"sku":"ABC123"}`,
+			schemaFile:       schema2File,
+			errorExpected:    false,
+			expectedJSON:     `{"price":99.99,"sku":"ABC123"}`,
 		},
 		{
-			name:          "invalid user document against user schema",
-			documentContent: `{"name": "John"}`, // missing email
+			name:             "invalid user document against user schema",
+			documentContent:  `{"name": "John"}`, // missing email
 			documentFileName: "invalid_user.json",
-			schemaFile:    schema1File,
-			errorExpected: true,
+			schemaFile:       schema1File,
+			errorExpected:    true,
 		},
 		{
-			name:          "invalid product document against product schema",
-			documentContent: `{"sku": "ABC123"}`, // missing price
+			name:             "invalid product document against product schema",
+			documentContent:  `{"sku": "ABC123"}`, // missing price
 			documentFileName: "invalid_product.json",
-			schemaFile:    schema2File,
-			errorExpected: true,
+			schemaFile:       schema2File,
+			errorExpected:    true,
 		},
 	}
 
@@ -545,4 +545,3 @@ func TestRefOverridesErrors(t *testing.T) {
 		}
 	})
 }
-
