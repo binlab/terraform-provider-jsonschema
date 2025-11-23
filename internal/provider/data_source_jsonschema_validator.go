@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
 	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func dataSourceJsonschemaValidator() *schema.Resource {

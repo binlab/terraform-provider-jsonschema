@@ -15,6 +15,9 @@ jobs:
           echo "${{ vars.TRUSTED_GPG_KEYS }}" | gpg --import
           echo "✅ Trusted keys imported"
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Import GPG keys from commits
         run: |
           # Extract all GPG key IDs from commits in the PR
@@ -27,26 +30,53 @@ jobs:
             echo "Commit $commit has key ID: '$KEY_ID'"
 
             if [ -n "$KEY_ID" ] && [ "$KEY_ID" != "" ]; then
-              echo "📥 Attempting to import GPG key $KEY_ID for commit $commit"
-
-              # Try to fetch from multiple keyservers with verbose output
-              if gpg --keyserver hkps://keys.openpgp.org --recv-keys "$KEY_ID" 2>&1; then
-                echo "✅ Successfully imported key $KEY_ID from keys.openpgp.org"
-              elif gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys "$KEY_ID" 2>&1; then
-                echo "✅ Successfully imported key $KEY_ID from keyserver.ubuntu.com"
-              elif gpg --keyserver hkps://pgp.mit.edu --recv-keys "$KEY_ID" 2>&1; then
-                echo "✅ Successfully imported key $KEY_ID from pgp.mit.edu"
-              else
-                echo "❌ Could not import key $KEY_ID from any keyserver"
-                exit 1
-              fi
-
-              # Verify the key was imported
+              # Check if key is already in keyring
               if gpg --list-keys "$KEY_ID" &>/dev/null; then
-                echo "✅ Key $KEY_ID is now in keyring"
+                echo "✅ Key $KEY_ID is already in keyring"
               else
-                echo "❌ Key $KEY_ID is NOT in keyring after import attempt"
-                exit 1
+                # Try importing from GitHub user profile first
+                COMMIT_AUTHOR_USERNAME=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                  "https://api.github.com/repos/${{ github.repository }}/commits/$commit" | jq -r '.author.login // .committer.login')
+
+                imported_from_github=false
+                if [ -n "$COMMIT_AUTHOR_USERNAME" ] && [ "$COMMIT_AUTHOR_USERNAME" != "null" ]; then
+                  echo "📥 Attempting to import GPG key for GitHub user '$COMMIT_AUTHOR_USERNAME' from their profile"
+                  if curl -sL "https://github.com/${COMMIT_AUTHOR_USERNAME}.gpg" | gpg --import; then
+                    if gpg --list-keys "$KEY_ID" &>/dev/null; then
+                      echo "✅ Successfully imported key $KEY_ID from GitHub profile of '$COMMIT_AUTHOR_USERNAME'"
+                      imported_from_github=true
+                    else
+                      echo "⚠️  Key from GitHub profile did not match commit key ID $KEY_ID. Falling back to keyservers."
+                    fi
+                  else
+                    echo "⚠️  Could not import GPG key from GitHub profile for user '$COMMIT_AUTHOR_USERNAME'. Falling back to keyservers."
+                  fi
+                else
+                  echo "⚠️  Could not determine GitHub username for commit $commit. Falling back to keyservers."
+                fi
+
+                # If not imported from GitHub, try keyservers (original logic)
+                if [ "$imported_from_github" = false ]; then
+                  echo "📥 Attempting to import GPG key $KEY_ID from keyservers"
+                  if gpg --keyserver hkps://keys.openpgp.org --recv-keys "$KEY_ID" 2>&1; then
+                    echo "✅ Successfully imported key $KEY_ID from keys.openpgp.org"
+                  elif gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys "$KEY_ID" 2>&1; then
+                    echo "✅ Successfully imported key $KEY_ID from keyserver.ubuntu.com"
+                  elif gpg --keyserver hkps://pgp.mit.edu --recv-keys "$KEY_ID" 2>&1; then
+                    echo "✅ Successfully imported key $KEY_ID from pgp.mit.edu"
+                  else
+                    echo "❌ Could not import key $KEY_ID from any source."
+                    exit 1
+                  fi
+                fi
+
+                # Final verification that the key is now in the keyring
+                if gpg --list-keys "$KEY_ID" &>/dev/null; then
+                    echo "✅ Key $KEY_ID is now in keyring"
+                else
+                    echo "❌ Key $KEY_ID is NOT in keyring after all import attempts"
+                    exit 1
+                fi
               fi
             else
               echo "⚠️  No key ID found for commit $commit (unsigned commit)"

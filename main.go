@@ -5,8 +5,9 @@ import (
 	"flag"
 	"log"
 
-	"github.com/binlab/terraform-provider-jsonschema/internal/provider"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+
+	"github.com/binlab/terraform-provider-jsonschema/internal/provider"
 )
 
 // These variables are set by GoReleaser via ldflags
