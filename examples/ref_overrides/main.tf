@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     jsonschema = {
-      source  = "iilei/jsonschema"
+      source  = "binlab/jsonschema"
       version = "0.0.0-dev" // replace this with actual latest version
 
     }

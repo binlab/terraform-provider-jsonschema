@@ -64,18 +64,18 @@ Users can test pre-release versions by installing directly from GitHub:
 ```bash
 # Download pre-release binary from GitHub Releases
 # Replace OS/ARCH as needed: linux_amd64, darwin_amd64, darwin_arm64, windows_amd64, etc.
-wget https://github.com/iilei/terraform-provider-jsonschema/releases/download/v0.6.0-beta.1/terraform-provider-jsonschema_0.6.0-beta.1_linux_amd64.tar.gz
+wget https://github.com/binlab/terraform-provider-jsonschema/releases/download/v0.6.0-beta.1/terraform-provider-jsonschema_0.6.0-beta.1_linux_amd64.tar.gz
 
 # Extract and install to Terraform plugin directory
 tar -xzf terraform-provider-jsonschema_0.6.0-beta.1_linux_amd64.tar.gz
-mkdir -p ~/.terraform.d/plugins/registry.terraform.io/iilei/jsonschema/0.6.0-beta.1/linux_amd64/
-mv terraform-provider-jsonschema_v0.6.0-beta.1 ~/.terraform.d/plugins/registry.terraform.io/iilei/jsonschema/0.6.0-beta.1/linux_amd64/
+mkdir -p ~/.terraform.d/plugins/registry.terraform.io/binlab/jsonschema/0.6.0-beta.1/linux_amd64/
+mv terraform-provider-jsonschema_v0.6.0-beta.1 ~/.terraform.d/plugins/registry.terraform.io/binlab/jsonschema/0.6.0-beta.1/linux_amd64/
 
 # Use in Terraform (note: pre-release version must be exact)
 # terraform {
 #   required_providers {
 #     jsonschema = {
-#       source  = "iilei/jsonschema"
+#       source  = "binlab/jsonschema"
 #       version = "0.6.0-beta.1"  # Exact pre-release version
 #     }
 #   }
@@ -89,7 +89,7 @@ Create or update `~/.terraformrc` (or `%APPDATA%/terraform.rc` on Windows):
 ```hcl
 provider_installation {
   dev_overrides {
-    "iilei/jsonschema" = "/path/to/your/local/build"
+    "binlab/jsonschema" = "/path/to/your/local/build"
   }
   direct {}
 }
@@ -111,7 +111,7 @@ Users can pin to specific versions using Terraform version constraints:
 terraform {
   required_providers {
     jsonschema = {
-      source  = "iilei/jsonschema"
+      source  = "binlab/jsonschema"
       # Stable releases only
       version = "~> 0.5.0"     # 0.5.x
       version = ">= 0.5.0, < 0.6.0"
@@ -122,6 +122,7 @@ terraform {
 ```
 
 **Pre-releases are NOT resolved by version constraints:**
+
 - `version = "~> 0.6.0"` will NOT match `v0.6.0-beta.1`
 - Users must manually install pre-releases for testing
 
@@ -131,44 +132,51 @@ The CLI tool (`jsonschema-validator`) follows the same versioning:
 
 ```bash
 # Install stable version
-go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
 
 # Install specific pre-release
-go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.6.0-beta.1
+go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.6.0-beta.1
 
 # Install specific stable version
-go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.5.0
+go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.5.0
 ```
 
 ### Release Workflow
 
 1. **Development Phase**
+
    - Work on feature branch
    - Merge to `main` via PR with tests passing
 
 2. **Alpha Release** (optional, for early feedback)
+
    ```bash
    git tag v0.6.0-alpha.1
    git push origin v0.6.0-alpha.1
    ```
+
    - GitHub Release created automatically (marked as pre-release)
    - NOT published to Terraform Registry
    - Manual testing by early adopters
 
 3. **Beta Release** (feature complete, testing)
+
    ```bash
    git tag v0.6.0-beta.1
    git push origin v0.6.0-beta.1
    ```
+
    - GitHub Release created automatically (marked as pre-release)
    - NOT published to Terraform Registry
    - Broader testing with real-world scenarios
 
 4. **Release Candidate** (final testing)
+
    ```bash
    git tag v0.6.0-rc.1
    git push origin v0.6.0-rc.1
    ```
+
    - GitHub Release created automatically (marked as pre-release)
    - NOT published to Terraform Registry
    - Final validation before stable release
@@ -190,8 +198,8 @@ The `.goreleaser.yml` automatically handles pre-releases:
 
 ```yaml
 release:
-  prerelease: auto  # Detects -alpha, -beta, -rc suffixes
-  make_latest: false  # Don't mark pre-releases as latest
+  prerelease: auto # Detects -alpha, -beta, -rc suffixes
+  make_latest: false # Don't mark pre-releases as latest
 ```
 
 Pre-release detection regex: `v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)`
@@ -211,6 +219,7 @@ The release workflow (`.github/workflows/release.yml`):
 If a stable release has critical issues:
 
 1. **Immediately tag a patch release** (recommended):
+
    ```bash
    # Fix the issue in main
    git tag v0.6.1
@@ -218,6 +227,7 @@ If a stable release has critical issues:
    ```
 
 2. **Delete the broken release** (last resort):
+
    ```bash
    # Delete tag locally and remotely
    git tag -d v0.6.0
@@ -258,7 +268,7 @@ git checkout main
 git ls-remote --tags origin | grep v0.6.0
 
 # Verify module path correct
-go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.6.0
+go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.6.0
 
 # Clear Go module cache if stale
 go clean -modcache
@@ -271,7 +281,7 @@ go clean -modcache
 go version
 
 # Verify repository accessible
-git clone https://github.com/iilei/terraform-provider-jsonschema
+git clone https://github.com/binlab/terraform-provider-jsonschema
 
 # Clean pre-commit cache
 pre-commit clean
@@ -319,11 +329,13 @@ Week 4: v0.6.0          → Stable release → Terraform Registry
 ### Version Numbering Guidelines
 
 **Stable releases (0.x.x):**
+
 - `0.x.0` - Minor version bump (new features, may break compatibility in 0.x)
 - `0.x.y` - Patch version bump (bug fixes, no breaking changes)
 - `1.0.0` - First stable release (semver guarantees begin)
 
 **Pre-releases:**
+
 - `-alpha.N` - Early development, unstable, frequent changes
 - `-beta.N` - Feature complete, testing phase, API may change
 - `-rc.N` - Release candidate, stable, only critical fixes
@@ -341,7 +353,7 @@ Pin exact versions in production: `version = "0.5.0"` (not `~> 0.5.0`).
 4. ✅ CHANGELOG.md updated with changes
 5. ✅ README.rst updated if new features added
 6. ✅ Examples updated/added if behavior changed
-7. ✅ Documentation updated (docs/*.md)
+7. ✅ Documentation updated (docs/\*.md)
 8. ✅ Version constraints tested (`version = "~> 0.x.0"`)
 9. ✅ Breaking changes clearly documented
 10. ✅ Migration guide provided (if breaking changes)
@@ -379,19 +391,22 @@ goreleaser release --snapshot --clean
 After pushing a tag and release completes:
 
 1. **GitHub Release**: Verify release created with correct assets
+
    - Provider archives (`.tar.gz`, `.zip`)
    - CLI archives (`.tar.gz`, `.zip`)
    - SHA256SUMS files (2 separate: provider + CLI)
    - GPG signatures (`.sig` files)
 
 2. **Terraform Registry**: Verify stable releases appear (within ~15 minutes)
-   - Check https://registry.terraform.io/providers/iilei/jsonschema/latest
+
+   - Check https://registry.terraform.io/providers/binlab/jsonschema/latest
    - Verify version number correct
    - Test installation: `terraform init` in example project
 
 3. **CLI Installation**: Verify `go install` works
+
    ```bash
-   go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.6.0
+   go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@v0.6.0
    jsonschema-validator --version
    ```
 

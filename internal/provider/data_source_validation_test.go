@@ -3,7 +3,7 @@ package provider
 import (
 	"testing"
 
-	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
+	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 )
 
 func TestDataSourceValidationLogic(t *testing.T) {
