@@ -544,3 +544,132 @@ func TestRefOverridesErrors(t *testing.T) {
 		}
 	})
 }
+
+func Test_dataSourceJsonschemaValidator_Content(t *testing.T) {
+	var cases = []struct {
+		name              string
+		attributes        map[string]string // Use a map for flexibility
+		errorExpected     bool
+		expectedJSON      string
+		expectedErrorFrag string
+	}{
+		{
+			name: "valid inline document and schema",
+			attributes: map[string]string{
+				"document_content": `{"test": "test"}`,
+				"schema_content":   schemaValid,
+			},
+			errorExpected: false,
+			expectedJSON:  `{"test":"test"}`,
+		},
+		{
+			name: "invalid inline document",
+			attributes: map[string]string{
+				"document_content": `{"foo": "bar"}`,
+				"schema_content":   schemaValid,
+			},
+			errorExpected:     true,
+			expectedErrorFrag: "validation failed",
+		},
+		{
+			name: "invalid inline schema",
+			attributes: map[string]string{
+				"document_content": `{"test": "test"}`,
+				"schema_content":   `{"type": "invalid"}`,
+			},
+			errorExpected:     true,
+			expectedErrorFrag: "failed to compile schema",
+		},
+		{
+			name: "mutually exclusive document error",
+			attributes: map[string]string{
+				"document":         "doc.json",
+				"document_content": `{}`,
+				"schema_content":   schemaValid,
+			},
+			errorExpected:     true,
+			expectedErrorFrag: "provide exactly one of 'document' (path) or 'document_content' (inline content)",
+		},
+		{
+			name: "mutually exclusive schema error",
+			attributes: map[string]string{
+				"document_content": `{}`,
+				"schema":           "schema.json",
+				"schema_content":   schemaValid,
+			},
+			errorExpected:     true,
+			expectedErrorFrag: "provide exactly one of 'schema' (path) or 'schema_content' (inline content)",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a dummy file if a file path is specified in attributes,
+			// as the provider expects the file to exist.
+			tempDir := t.TempDir()
+			attrs := make(map[string]string)
+			for k, v := range tt.attributes {
+				if k == "document" || k == "schema" {
+					dummyPath := filepath.Join(tempDir, v)
+					if err := os.WriteFile(dummyPath, []byte("{}"), 0644); err != nil {
+						t.Fatalf("Failed to create dummy file: %v", err)
+					}
+					attrs[k] = dummyPath
+				} else {
+					attrs[k] = v
+				}
+			}
+
+			config := makeDataSourceConfig(attrs)
+			t.Logf("Generated config for test case %q:\n%s", tt.name, config)
+
+			resource.Test(t, resource.TestCase{
+				PreCheck:          func() { testAccPreCheck(t) },
+				ProviderFactories: providerFactories,
+				Steps: []resource.TestStep{
+					{
+						Config: config,
+						Check: resource.ComposeAggregateTestCheckFunc(
+							func() resource.TestCheckFunc {
+								if tt.expectedJSON != "" {
+									return resource.TestCheckResourceAttr("data.jsonschema_validator.test", "valid_json", tt.expectedJSON)
+								}
+								if !tt.errorExpected {
+									return resource.TestCheckResourceAttrSet("data.jsonschema_validator.test", "id")
+								}
+								return nil // No check for error cases
+							}(),
+						),
+					},
+				},
+				ErrorCheck: func(err error) error {
+					if !tt.errorExpected {
+						return err // Fails if an unexpected error occurs
+					}
+					if err == nil {
+						return fmt.Errorf("error expected for case: %s", tt.name)
+					}
+					if tt.expectedErrorFrag != "" && !strings.Contains(err.Error(), tt.expectedErrorFrag) {
+						return fmt.Errorf("expected error fragment %q not found in error: %w", tt.expectedErrorFrag, err)
+					}
+					return nil // Error was expected and occurred
+				},
+			})
+		})
+	}
+}
+
+// makeDataSourceConfig generates HCL config for data.jsonschema_validator.test
+func makeDataSourceConfig(attributes map[string]string) string {
+	var config strings.Builder
+	config.WriteString(`data "jsonschema_validator" "test" {`)
+	for k, v := range attributes {
+		if strings.Contains(v, "\n") {
+			config.WriteString(fmt.Sprintf("\n  %s = <<EOT\n%s\nEOT", k, v))
+		} else {
+			config.WriteString(fmt.Sprintf("\n  %s = %q", k, v))
+		}
+	}
+	config.WriteString("\n}")
+	return config.String()
+}

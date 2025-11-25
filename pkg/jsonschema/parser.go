@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -35,6 +36,26 @@ func ParseFile(path string, forceType FileType) (interface{}, error) {
 		fileType = DetectFileType(path)
 	}
 
+	return ParseByType(data, fileType)
+}
+
+// ParseData parses the provided bytes (inline content). If forceType == FileTypeAuto or empty,
+// it will try to detect type by DetectFileTypeFromContent() function
+func ParseData(data []byte, forceType FileType) (interface{}, error) {
+	fileType := forceType
+	var err error
+
+	if fileType == FileTypeAuto || fileType == "" {
+		fileType, err = DetectFileTypeFromContent(data)
+		if err != nil {
+			return nil, fmt.Errorf("unable to detect file type from inline content; set force_filetype explicitly: %w", err)
+		}
+	}
+
+	return ParseByType(data, fileType)
+}
+
+func ParseByType(data []byte, fileType FileType) (interface{}, error) {
 	switch fileType {
 	case FileTypeJSON:
 		return ParseJSON(data)
@@ -67,6 +88,35 @@ func DetectFileType(path string) FileType {
 	default:
 		return FileTypeJSON5 // Most permissive fallback
 	}
+}
+
+func DetectFileTypeFromContent(data []byte) (FileType, error) {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return "", fmt.Errorf("empty content")
+	}
+
+	// 1. Strict JSON
+	if _, err := ParseJSON(trimmed); err == nil {
+		return FileTypeJSON, nil
+	}
+
+	// 2. TOML (strict)
+	if _, err := ParseTOML(trimmed); err == nil {
+		return FileTypeTOML, nil
+	}
+
+	// 3. JSON5 (more specific than YAML)
+	if _, err := ParseJSON5(trimmed); err == nil {
+		return FileTypeJSON5, nil
+	}
+
+	// 4. YAML (liberal, may accept a lot)
+	if _, err := ParseYAML(trimmed); err == nil {
+		return FileTypeYAML, nil
+	}
+
+	return "", fmt.Errorf("unable to detect file type by content")
 }
 
 // ParseJSON parses standard JSON data
