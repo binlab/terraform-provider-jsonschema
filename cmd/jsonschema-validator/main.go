@@ -9,8 +9,8 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/spf13/pflag"
 
-	"github.com/iilei/terraform-provider-jsonschema/pkg/config"
-	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
+	"github.com/binlab/terraform-provider-jsonschema/pkg/config"
+	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 )
 
 const (
@@ -95,7 +95,7 @@ Examples:
   #   3. package.json "jsonschema-validator" field
   #   4. ~/.jsonschema-validator.yaml
 
-For more information, see: https://github.com/iilei/terraform-provider-jsonschema
+For more information, see: https://github.com/binlab/terraform-provider-jsonschema
 `)
 	}
 

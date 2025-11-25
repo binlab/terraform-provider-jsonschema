@@ -1,4 +1,4 @@
-module github.com/iilei/terraform-provider-jsonschema
+module github.com/binlab/terraform-provider-jsonschema
 
 go 1.25
 

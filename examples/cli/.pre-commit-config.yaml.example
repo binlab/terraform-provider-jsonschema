@@ -2,7 +2,7 @@
 
 ## Example 1: Zero-config (uses .jsonschema-validator.yaml)
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator
@@ -10,7 +10,7 @@ repos:
 
 ## Example 2: Inline configuration
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator
@@ -29,7 +29,7 @@ repos:
 
 ## Example 3: Python project (reads from pyproject.toml)
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator
@@ -37,7 +37,7 @@ repos:
 
 ## Example 4: Node.js project (reads from package.json)
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator
@@ -45,7 +45,7 @@ repos:
 
 ## Example 5: Multiple schemas with different configurations
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator
@@ -66,7 +66,7 @@ repos:
 
 ## Example 6: With custom error template
 repos:
-  - repo: https://github.com/iilei/terraform-provider-jsonschema
+  - repo: https://github.com/binlab/terraform-provider-jsonschema
     rev: v0.5.0
     hooks:
       - id: jsonschema-validator

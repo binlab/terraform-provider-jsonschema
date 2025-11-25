@@ -1,10 +1,10 @@
 - id: jsonschema-validator
   name: JSON Schema Validator
-  description: Validate JSON/JSON5 documents against JSON Schema as per `.Env.JSONSCHEMA_VALIDATOR_SCHEMA` (install via 'go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest')
+  description: Validate JSON/JSON5 documents against JSON Schema as per `.Env.JSONSCHEMA_VALIDATOR_SCHEMA` (install via 'go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest')
   entry: jsonschema-validator
   language: system
   pass_filenames: true
   stages: [manual]
-  files: ''
-  minimum_pre_commit_version: '2.9.0'
+  files: ""
+  minimum_pre_commit_version: "2.9.0"
   require_serial: false

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	validator "github.com/iilei/terraform-provider-jsonschema/pkg/jsonschema"
+	validator "github.com/binlab/terraform-provider-jsonschema/pkg/jsonschema"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )

@@ -2,8 +2,8 @@
 terraform-provider-jsonschema
 =============================
 
-.. image:: https://codecov.io/github/iilei/terraform-provider-jsonschema/branch/master/graph/badge.svg
-    :target: https://codecov.io/github/iilei/terraform-provider-jsonschema
+.. image:: https://codecov.io/github/binlab/terraform-provider-jsonschema/branch/master/graph/badge.svg
+    :target: https://codecov.io/github/binlab/terraform-provider-jsonschema
     :alt: Coverage Status
 
 A |terraform|_ provider for validating JSON, JSON5, YAML, and TOML documents using |json-schema|_ specifications.
@@ -36,23 +36,23 @@ A |terraform|_ provider for validating JSON, JSON5, YAML, and TOML documents usi
    - **valid_json field**: Renamed from ``validated`` for clarity
    - **force_filetype field**: New optional field to override format detection
    - **Multi-format support**: Added YAML and TOML validation
-
+   
    **Migration required:**
-
+   
    .. code-block:: diff
-
+   
      # Before (v0.5.x)
      data "jsonschema_validator" "config" {
      -  document = file("${path.module}/config.json")
      +  document = "${path.module}/config.json"
         schema   = "${path.module}/config.schema.json"
      }
-
+     
      locals {
      -  config = jsondecode(data.jsonschema_validator.config.validated)
      +  config = jsondecode(data.jsonschema_validator.config.valid_json)
      }
-
+   
    See the full documentation for migration details.
 
 
@@ -86,7 +86,7 @@ On |terraform|_ versions 0.13+ use:
   terraform {
     required_providers {
       jsonschema = {
-        source  = "iilei/jsonschema"
+        source  = "binlab/jsonschema"
         version = "0.6.1"  # Pin to specific version
       }
     }
@@ -103,11 +103,11 @@ Install the ``jsonschema-validator`` CLI for use outside Terraform (Python, Node
 
 .. code-block:: bash
 
-  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+  go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
 
 **Via Release Binary:**
 
-Download pre-built binaries from `GitHub Releases <https://github.com/iilei/terraform-provider-jsonschema/releases>`_
+Download pre-built binaries from `GitHub Releases <https://github.com/binlab/terraform-provider-jsonschema/releases>`_
 
 
 Quick Start
@@ -237,7 +237,7 @@ Redirect remote ``$ref`` URLs to local files for offline validation:
   data "jsonschema_validator" "api_request" {
     document = "${path.module}/api-request.json"
     schema   = "${path.module}/schemas/api-request.schema.json"
-
+    
     ref_overrides = {
       "https://api.example.com/schemas/user.schema.json" = "${path.module}/schemas/user.schema.json"
     }
@@ -278,10 +278,10 @@ Requirements: |go|_ 1.25+
 
   # Run tests
   go test ./internal/provider/ -v
-
+  
   # Run acceptance tests
   TF_ACC=1 go test ./internal/provider/ -v
-
+  
   # View coverage
   go test ./internal/provider/ -coverprofile=coverage.out
   go tool cover -html=coverage.out
@@ -293,8 +293,8 @@ Requirements: |go|_ 1.25+
 .. |terraform-install-plugin| replace:: install a terraform plugin
 .. _terraform-install-plugin: https://www.terraform.io/docs/plugins/basics.html#installing-a-plugin
 
-.. |user-docs| replace:: User Documentation
-.. _user-docs: https://registry.terraform.io/providers/iilei/jsonschema/latest/docs
+.. |user-docs| replace:: User Documentation  
+.. _user-docs: https://registry.terraform.io/providers/binlab/jsonschema/latest/docs
 
 .. |json-schema| replace:: json-schema
 .. _json-schema: https://json-schema.org/
