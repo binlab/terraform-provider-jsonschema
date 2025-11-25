@@ -55,10 +55,15 @@ A |terraform|_ provider for validating JSON, JSON5, YAML, and TOML documents usi
 
    See the full documentation for migration details.
 
+   **Version 0.7.0 re-introduces support for inline document and schema content**:
+   
+   - **document_content field**: New argument for providing document content inline.
+   - **schema_content field**: New argument for providing schema content inline.
 
 Features
 ========
 
+- **Inline Document and Schema Content**: Provide document or schema content directly as strings in HCL (v0.7.0+)
 - **Multi-format Support**: Validate JSON, JSON5, YAML, and TOML documents against JSON Schema
 - **Auto-detection**: Format determined from file extension (``.json``, ``.json5``, ``.yaml``, ``.yml``, ``.toml``)
 - **JSON5 Support**: Full support for JSON5 schemas with comments, trailing commas, unquoted keys
@@ -87,7 +92,7 @@ On |terraform|_ versions 0.13+ use:
     required_providers {
       jsonschema = {
         source  = "iilei/jsonschema"
-        version = "0.6.1"  # Pin to specific version
+        version = "0.7.0"  # Pin to specific version
       }
     }
   }
@@ -144,6 +149,54 @@ Terraform Provider
   locals {
     config = jsondecode(data.jsonschema_validator.config.valid_json)
   }
+
+Inline Content Validation (v0.7.0+)
+---------------------------------
+
+Validate documents and schemas provided directly as strings in your HCL code. This is useful for dynamically generated content or when you want to avoid managing separate files.
+
+.. code-block:: terraform
+
+  locals {
+    # Example Terraform object to validate
+    user_data = {
+      name  = "John Doe"
+      email = "john.doe@example.com"
+      age   = 30
+    }
+  }
+
+  data "jsonschema_validator" "inline_user_validation" {
+    # Document content from a Terraform local variable, encoded as JSON
+    document_content = jsonencode(local.user_data)
+    
+    # Schema content defined inline using a heredoc
+    schema_content = <<-EOT
+      {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "email": {"type": "string", "format": "email"},
+          "age": {"type": "integer", "minimum": 0}
+        },
+        "required": ["name", "email"]
+      }
+    EOT
+    
+    # Optionally force content type if auto-detection is not sufficient
+    force_filetype = "json"
+  }
+
+  output "validated_user" {
+    value = jsondecode(data.jsonschema_validator.inline_user_validation.valid_json)
+  }
+
+Benefits of Inline Content:
+
+- **Validate Terraform Objects**: Directly validate locals, variables, or outputs.
+- **Dynamic Data**: Handle data generated within your configuration.
+- **HCL-Defined Schemas**: Define schemas directly in HCL using heredocs.
+- **Reduced File Management**: No need for external files for simple cases.
 
 Standalone CLI
 --------------
