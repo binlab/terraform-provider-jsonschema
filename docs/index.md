@@ -1,5 +1,12 @@
 # JSON Schema Provider
 
+-> **Note:** This is a maintained fork of the [iilei/terraform-provider-jsonschema](https://github.com/iilei/terraform-provider-jsonschema) provider. Originally developed by [vladarts](https://github.com/vladarts/terraform-provider-jsonschema) and previously forked/maintained by [JeffAshton](https://github.com/JeffAshton/terraform-provider-jsonschema) and [nekottyo](https://github.com/nekottyo/terraform-provider-jsonschema).
+This fork is actively maintained to provide critical enhancements and features that are currently missing or unaddressed in the upstream repositories.
+
+> **Key Enhancements:**
+>
+> - **In-line Content Support:** Re-introduced `document_content` and `schema_content` arguments (see [PR #29](https://github.com/iilei/terraform-provider-jsonschema/pull/29) or the `[feature branch](https://github.com/binlab/terraform-provider-jsonschema/tree/feat/add-inline-document-and-schema)). These allow providing JSON document and schema content directly as strings within HCL, which is essential for dynamically generated data or minimizing external file dependencies.
+
 Terraform provider for validating JSON, JSON5, YAML, and TOML documents using [JSON Schema](https://json-schema.org/) specifications.
 
 > ⚠️ **BREAKING CHANGES in v0.6.0**

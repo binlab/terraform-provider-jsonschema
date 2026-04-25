@@ -1,0 +1,42 @@
+name: 🔀 Fork Releaser
+
+on:
+  workflow_run:
+    workflows: ["🔄 Upstream Sync"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      target_tag:
+        description: "Specific upstream tag to release (e.g., v1.50.0). Leave empty to auto-discover the latest."
+        required: false
+        type: string
+        default: ""
+      overwrite:
+        description: "Recreate the release even if the tag already exists in this repository."
+        required: false
+        type: boolean
+        default: false
+      single_target:
+        description: "Limit the build to a single target architecture (linux/amd64) for faster testing."
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    if: >
+      github.event_name == 'workflow_dispatch' || 
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'schedule')
+    name: ${{ github.event_name == 'workflow_dispatch' && '👆 Manual' || '⏱️ Cron' }}
+    uses: binlab/github-toolbox/.github/workflows/fork-releaser.yml@main
+    with:
+      target_tag: ${{ inputs.target_tag || '' }}
+      overwrite: ${{ inputs.overwrite == true }}
+      single_target: ${{ inputs.single_target == true }}
+
+      features: "fork feat/add-inline-document-and-schema"
+      base_branch: "master"
+      stable_branch: "stable"
+      release_branch: "release"
+
+    secrets: inherit

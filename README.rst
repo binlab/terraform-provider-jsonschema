@@ -2,8 +2,37 @@
 terraform-provider-jsonschema
 =============================
 
-.. image:: https://codecov.io/github/iilei/terraform-provider-jsonschema/branch/master/graph/badge.svg
-    :target: https://codecov.io/github/iilei/terraform-provider-jsonschema
+|upstream_sync| |fork_releaser| |run_tests| |latest_release| |coverage_status|
+
+.. |upstream_sync| image:: https://github.com/binlab/terraform-provider-jsonschema/actions/workflows/upstream-sync.yml/badge.svg
+   :target: https://github.com/binlab/terraform-provider-jsonschema/actions/workflows/upstream-sync.yml
+   :alt: Upstream Sync Status
+
+.. |fork_releaser| image:: https://github.com/binlab/terraform-provider-jsonschema/actions/workflows/fork-releaser.yml/badge.svg
+   :target: https://github.com/binlab/terraform-provider-jsonschema/actions/workflows/fork-releaser.yml
+   :alt: Fork Releaser Status
+
+.. |run_tests| image:: https://github.com/binlab/terraform-provider-jsonschema/actions/workflows/test.yml/badge.svg
+   :target: https://github.com/binlab/terraform-provider-jsonschema/actions/workflows/test.yml
+   :alt: Build and Test Status
+
+.. |latest_release| image:: https://img.shields.io/github/v/release/binlab/terraform-provider-jsonschema?style=flat&color=31c653
+   :target: https://github.com/binlab/terraform-provider-jsonschema/releases/latest
+   :alt: GitHub Latest Release
+
+ℹ️ **NOTE**
+
+  This is a maintained fork of the `iilei/terraform-provider-jsonschema <https://github.com/iilei/terraform-provider-jsonschema>`_ provider.
+  Originally developed by `vladarts <https://github.com/vladarts/terraform-provider-jsonschema>`_ and previously forked/maintained by `JeffAshton <https://github.com/JeffAshton/terraform-provider-jsonschema>`_ and `nekottyo <https://github.com/nekottyo/terraform-provider-jsonschema>`_.
+
+  This fork is actively maintained to provide critical enhancements and features that are currently missing or unaddressed in the upstream repositories.
+
+  **Key Enhancements:**
+
+  * **In-line Content Support:** Re-introduced ``document_content`` and ``schema_content`` arguments (see `PR #29 <https://github.com/iilei/terraform-provider-jsonschema/pull/29>`_ or the `feature branch <https://github.com/binlab/terraform-provider-jsonschema/tree/feat/add-inline-document-and-schema>`_). These allow providing JSON document and schema content directly as strings within HCL, which is essential for dynamically generated data or minimizing external file dependencies.
+
+.. |coverage_status| image:: https://codecov.io/github/binlab/terraform-provider-jsonschema/branch/release/graph/badge.svg
+    :target: https://codecov.io/github/binlab/terraform-provider-jsonschema
     :alt: Coverage Status
 
 A |terraform|_ provider for validating JSON, JSON5, YAML, and TOML documents using |json-schema|_ specifications.
@@ -86,8 +115,8 @@ On |terraform|_ versions 0.13+ use:
   terraform {
     required_providers {
       jsonschema = {
-        source  = "iilei/jsonschema"
-        version = "0.6.1"  # Pin to specific version
+        source  = "binlab/jsonschema"
+        version = "0.6.2"  # Pin to specific version
       }
     }
   }
@@ -103,11 +132,11 @@ Install the ``jsonschema-validator`` CLI for use outside Terraform (Python, Node
 
 .. code-block:: bash
 
-  go install github.com/iilei/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
+  go install github.com/binlab/terraform-provider-jsonschema/cmd/jsonschema-validator@latest
 
 **Via Release Binary:**
 
-Download pre-built binaries from `GitHub Releases <https://github.com/iilei/terraform-provider-jsonschema/releases>`_
+Download pre-built binaries from `GitHub Releases <https://github.com/binlab/terraform-provider-jsonschema/releases>`_
 
 
 Quick Start
@@ -294,7 +323,7 @@ Requirements: |go|_ 1.25+
 .. _terraform-install-plugin: https://www.terraform.io/docs/plugins/basics.html#installing-a-plugin
 
 .. |user-docs| replace:: User Documentation
-.. _user-docs: https://registry.terraform.io/providers/iilei/jsonschema/latest/docs
+.. _user-docs: https://registry.terraform.io/providers/binlab/jsonschema/latest/docs
 
 .. |json-schema| replace:: json-schema
 .. _json-schema: https://json-schema.org/

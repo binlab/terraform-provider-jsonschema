@@ -1,0 +1,16 @@
+name: 🔄 Upstream Sync
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Runs at 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: ${{ github.event_name == 'workflow_dispatch' && '👆 Manual' || '⏱️ Cron' }}
+    uses: binlab/github-toolbox/.github/workflows/upstream-sync.yml@main
+    with:
+      upstream_repo: "iilei/terraform-provider-jsonschema"
+      upstream_branch: "master"
+      target_branch: "master"
+    secrets: inherit
