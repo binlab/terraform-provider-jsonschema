@@ -130,6 +130,15 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v4
 
+    - name: Install Terraform CLI
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ matrix.terraform }}
+        terraform_wrapper: false
+
+    - name: Get Terraform path
+      run: echo "TERRAFORM_PATH=$(which terraform)" >> $GITHUB_ENV
+
     - name: Get dependencies
       run: |
         go mod download
@@ -139,6 +148,7 @@ jobs:
       env:
         TF_ACC: "1"
         TF_ACC_TERRAFORM_VERSION: ${{ matrix.terraform }}
+        TF_ACC_TERRAFORM_PATH: ${{ env.TERRAFORM_PATH }}
 
         # Set whatever additional acceptance test env vars here. You can
         # optionally use data from your repository secrets using the

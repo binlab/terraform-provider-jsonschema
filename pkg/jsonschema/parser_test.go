@@ -336,3 +336,92 @@ func TestParseFile_ContentValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestParseData(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     []byte
+		forceType FileType
+		wantErr   bool
+	}{
+		{"Valid JSON", []byte(`{"a": 1}`), FileTypeJSON, false},
+		{"Valid YAML", []byte(`a: 1`), FileTypeYAML, false},
+		{"Valid TOML", []byte(`a = 1`), FileTypeTOML, false},
+		{"Valid JSON5 with trailing comma", []byte(`{a: 1,}`), FileTypeJSON5, false},
+		{"Valid JSON5 with comment", []byte(`{a: 1, /* comment */}`), FileTypeJSON5, false},
+		{"Invalid data", []byte(`{a:1`), FileTypeAuto, true},
+		{"Empty data", []byte(``), FileTypeAuto, true},
+		{"Force JSON on YAML", []byte(`a: 1`), FileTypeJSON, true},
+		{"Auto-detect JSON", []byte(`{"a": 1}`), FileTypeAuto, false},
+		{"Auto-detect YAML", []byte(`a: 1`), FileTypeAuto, false},
+		{"Auto-detect TOML", []byte(`a = 1`), FileTypeAuto, false},
+		{"Auto-detect JSON5 with trailing comma", []byte(`{a: 1,}`), FileTypeAuto, false},
+		{"Auto-detect JSON5 with comment", []byte(`{a: 1, /* comment */}`), FileTypeAuto, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseData(tt.input, tt.forceType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseData() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseByType(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		fileType FileType
+		wantErr  bool
+	}{
+		{"JSON", []byte(`{"a": 1}`), FileTypeJSON, false},
+		{"YAML", []byte(`a: 1`), FileTypeYAML, false},
+		{"TOML", []byte(`a = 1`), FileTypeTOML, false},
+		{"JSON5 with trailing comma", []byte(`{a: 1,}`), FileTypeJSON5, false},
+		{"JSON5 with comment", []byte(`{a: 1, /* comment */}`), FileTypeJSON5, false},
+		{"Invalid type", []byte(`abc`), "invalid", true},
+		{"Wrong type for content", []byte(`a: 1`), FileTypeJSON, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseByType(tt.input, tt.fileType)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseByType() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDetectFileTypeFromContent(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected FileType
+		wantErr  bool
+	}{
+		{"JSON", []byte(`{"a": 1}`), FileTypeJSON, false},
+		{"YAML", []byte(`a: 1`), FileTypeYAML, false},
+		{"TOML", []byte(`a = 1`), FileTypeTOML, false},
+		{"JSON5 with trailing comma", []byte(`{a: 1,}`), FileTypeJSON5, false},
+		{"JSON5 with comment", []byte(`{a: 1, /* comment */}`), FileTypeJSON5, false},
+		{"Ambiguous (JSON is also YAML)", []byte(`"a"`), FileTypeJSON, false},
+		{"Invalid", []byte(`{a:1`), "", true},
+		{"Empty", []byte(``), "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DetectFileTypeFromContent(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DetectFileTypeFromContent() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.expected {
+				t.Errorf("DetectFileTypeFromContent() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
