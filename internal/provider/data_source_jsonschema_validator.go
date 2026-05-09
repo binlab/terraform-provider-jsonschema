@@ -20,18 +20,28 @@ func dataSourceJsonschemaValidator() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"document": {
 				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Path to document file to validate (supports .json, .json5, .yaml, .yml, .toml)",
+				Optional:    true,
+				Description: "Path to document file to validate (supports .json, .json5, .yaml, .yml, .toml). Must provide exactly one of 'document' or 'document_content'; cannot provide both.",
+			},
+			"document_content": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Inline content of the document (string). Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from content. Must provide exactly one of 'document' or 'document_content'.",
 			},
 			"force_filetype": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Force document file type (json, json5, yaml, toml). If not set, type is auto-detected from file extension.",
+				Description: "Force document file type (json, json5, yaml, toml). If not set, type is auto-detected: from file extension for file paths, or from content for inline data. Can be specified explicitly to avoid ambiguity.",
 			},
 			"schema": {
 				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Path to schema file (supports .json, .json5, .yaml, .yml)",
+				Optional:    true,
+				Description: "Path to schema file (supports .json, .json5, .yaml, .yml). Must provide exactly one of 'schema' or 'schema_content'; cannot provide both.",
+			},
+			"schema_content": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Inline content of the schema (string). Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from content. Must provide exactly one of 'schema' or 'schema_content'.",
 			},
 			"schema_version": {
 				Type:        schema.TypeString,
@@ -65,9 +75,13 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 		return fmt.Errorf("invalid provider configuration")
 	}
 
-	documentPath := d.Get("document").(string)
+	documentPath, _ := d.Get("document").(string)
+	documentContent, _ := d.Get("document_content").(string)
 	documentForceFiletype, _ := d.Get("force_filetype").(string)
-	schemaPath := d.Get("schema").(string)
+
+	schemaPath, _ := d.Get("schema").(string)
+	schemaContent, _ := d.Get("schema_content").(string)
+
 	schemaVersionOverride := d.Get("schema_version").(string)
 	errorMessageTemplate := d.Get("error_message_template").(string)
 
@@ -77,20 +91,50 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	}
 
 	// Parse document file (supports JSON, JSON5, YAML, TOML)
+	if (documentContent == "" && documentPath == "") ||
+		(documentContent != "" && documentPath != "") {
+		return fmt.Errorf("provide exactly one of 'document' (path) or 'document_content' (inline content)")
+	}
+
+	if (schemaContent == "" && schemaPath == "") ||
+		(schemaContent != "" && schemaPath != "") {
+		return fmt.Errorf("provide exactly one of 'schema' (path) or 'schema_content' (inline content)")
+	}
+
+	// Determine document file type
 	docFileType := validator.FileType(documentForceFiletype)
 	if docFileType == "" {
 		docFileType = validator.FileTypeAuto
 	}
 
-	documentData, err := validator.ParseFile(documentPath, docFileType)
+	var documentParsed interface{}
+	var err error
+	var docSourceLabel string
+	if documentContent != "" {
+		documentParsed, err = validator.ParseData([]byte(documentContent), docFileType)
+		docSourceLabel = "<inline-document>"
+	} else {
+		documentParsed, err = validator.ParseFile(documentPath, docFileType)
+		docSourceLabel = documentPath
+	}
 	if err != nil {
-		return fmt.Errorf("failed to parse document file %q: %w", documentPath, err)
+		return fmt.Errorf("failed to parse document file %q: %w", docSourceLabel, err)
 	}
 
-	// Parse schema file (auto-detect from extension: .json/.json5 → JSON5 parser, .yaml/.yml → YAML parser)
-	schemaData, err := validator.ParseFile(schemaPath, validator.FileTypeAuto)
+	var schemaParsed interface{}
+	var schemaSourceLabel string
+	if schemaContent != "" {
+		// Parse schema inline content (auto-detect from content: JSON, JSON5, YAML, TOML)
+		schemaParsed, err = validator.ParseData([]byte(schemaContent), validator.FileTypeAuto)
+		schemaSourceLabel = "<inline-schema>"
+	} else {
+		// Parse schema file (auto-detect from extension:
+		// .json/.json5 → JSON5 parser, .yaml/.yml → YAML parser, .toml → TOML parser)
+		schemaParsed, err = validator.ParseFile(schemaPath, validator.FileTypeAuto)
+		schemaSourceLabel = schemaPath
+	}
 	if err != nil {
-		return fmt.Errorf("failed to parse schema file %q: %w", schemaPath, err)
+		return fmt.Errorf("failed to parse schema file %q: %w", schemaSourceLabel, err)
 	}
 
 	// Create a new compiler instance for this validation
@@ -160,18 +204,25 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	}
 
 	// Convert schema data to deterministic JSON string
-	schemaJSON, err := validator.MarshalDeterministic(schemaData)
+	schemaJSON, err := validator.MarshalDeterministic(schemaParsed)
 	if err != nil {
 		return fmt.Errorf("failed to convert schema to JSON: %w", err)
 	}
 
 	// Generate schema URL based on the actual schema file path
 	// This ensures unique URLs for different schemas in the same directory
-	schemaAbsPath, err := filepath.Abs(schemaPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for schema: %w", err)
+	var schemaURL string
+	if schemaContent != "" {
+		// create deterministic inline URL using hash of schemaJSON
+		h := sha256.Sum256(schemaJSON)
+		schemaURL = fmt.Sprintf("inline://json-schema/%s", hex.EncodeToString(h[:]))
+	} else {
+		schemaAbsPath, err := filepath.Abs(schemaPath)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path for schema: %w", err)
+		}
+		schemaURL = fmt.Sprintf("file://%s", schemaAbsPath)
 	}
-	schemaURL := fmt.Sprintf("file://%s", schemaAbsPath)
 
 	// Add schema resource and compile (v6 API)
 	var parsedSchemaData interface{}
@@ -189,12 +240,12 @@ func dataSourceJsonschemaValidatorRead(d *schema.ResourceData, m interface{}) er
 	}
 
 	// Validate the document
-	if err := compiledSchema.Validate(documentData); err != nil {
-		return validator.FormatValidationError(err, schemaPath, documentPath, errorMessageTemplate)
+	if err := compiledSchema.Validate(documentParsed); err != nil {
+		return validator.FormatValidationError(err, schemaSourceLabel, docSourceLabel, errorMessageTemplate)
 	}
 
 	// Convert document to deterministic canonical JSON
-	canonicalJSON, err := validator.MarshalDeterministic(documentData)
+	canonicalJSON, err := validator.MarshalDeterministic(documentParsed)
 	if err != nil {
 		return fmt.Errorf("failed to convert document to canonical JSON: %w", err)
 	}
