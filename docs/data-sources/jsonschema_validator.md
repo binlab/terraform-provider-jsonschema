@@ -112,6 +112,69 @@ locals {
 }
 ```
 
+### Inline Validation
+
+The `document_content` and `schema_content` arguments allow you to provide document and schema content directly as strings in your HCL code. This is particularly useful for dynamically generated content or when you want to avoid managing separate files.
+
+```hcl-terraform
+locals {
+  # Example Terraform object to validate
+  my_service_config = {
+    service_name = "api-gateway"
+    port         = 8080
+    enabled      = true
+    tags         = ["microservice", "public"]
+  }
+}
+
+data "jsonschema_validator" "inline_service_config" {
+  # Document content from a Terraform local variable, encoded as JSON
+  document_content = jsonencode(local.my_service_config)
+
+  # Schema content defined inline using a heredoc
+  schema_content = <<-EOT
+    {
+      "$schema": "http://json-schema.org/draft/2020-12/schema",
+      "title": "Service Configuration Schema",
+      "description": "Schema for microservice configuration objects",
+      "type": "object",
+      "properties": {
+        "service_name": {
+          "type": "string",
+          "description": "Name of the service"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Port on which the service listens"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the service is enabled"
+        },
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of tags associated with the service"
+        }
+      },
+      "required": ["service_name", "port", "enabled"],
+      "additionalProperties": false
+    }
+  EOT
+
+  # The force_filetype argument is also applicable to inline content.
+  # For example, if document_content contains YAML, you can set force_filetype = "yaml".
+  force_filetype = "json" # Ensure content is parsed as JSON
+}
+
+output "validated_service_config" {
+  description = "The validated service configuration object"
+  value       = jsondecode(data.jsonschema_validator.inline_service_config.valid_json)
+}
+```
+
 ### YAML Document Validation
 
 ```hcl-terraform
@@ -292,8 +355,10 @@ data "jsonschema_validator" "json_format" {
 
 ## Argument Reference
 
-* `document` (Required) - **Path to document file** to validate. Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`).
-* `schema` (Required) - Path to JSON or JSON5 schema file. Format auto-detected from extension.
+* `document` (Optional) - Path to document file to validate. Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from file extension (`.json`, `.json5`, `.yaml`, `.yml`, `.toml`). Must provide exactly one of `document` or `document_content`.
+* `document_content` (Optional) - Inline content of the document (string). Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from content. Must provide exactly one of `document` or `document_content`.
+* `schema` (Optional) - Path to JSON or JSON5 schema file. Format auto-detected from extension. Must provide exactly one of `schema` or `schema_content`.
+* `schema_content` (Optional) - Inline content of the schema (string). Supports JSON, JSON5, YAML, and TOML formats. Format is auto-detected from content. Must provide exactly one of `schema` or `schema_content`.
 * `force_filetype` (Optional) - Override automatic file type detection for the document. Valid values: `"json"`, `"json5"`, `"yaml"`, `"toml"`. Use when file extension doesn't match content format (e.g., `.txt` file containing YAML).
 * `schema_version` (Optional) - Schema version override (`"draft-04"` to `"draft/2020-12"`).
 * `error_message_template` (Optional) - Custom Go template for error messages. Available variables: `{{.SchemaFile}}`, `{{.Document}}`, `{{.FullMessage}}`, `{{.Errors}}`, `{{.ErrorCount}}`.

@@ -212,6 +212,120 @@ func TestDataSourceJsonschemaValidatorRead(t *testing.T) {
 	}
 }
 
+func TestDataSourceJsonschemaValidatorRead_Content(t *testing.T) {
+	schemaContent := `{
+		"type": "object",
+		"required": ["name"],
+		"properties": {
+			"name": {"type": "string"}
+		}
+	}`
+
+	tests := []struct {
+		name              string
+		resourceConfig    map[string]interface{}
+		providerConfig    *ProviderConfig
+		expectError       bool
+		errorContains     string
+		expectedValidJson string
+	}{
+		{
+			name: "valid inline document and schema",
+			resourceConfig: map[string]interface{}{
+				"document_content": `{"name": "John"}`,
+				"schema_content":   schemaContent,
+			},
+			providerConfig: &ProviderConfig{
+				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+			},
+			expectError:       false,
+			expectedValidJson: `{"name":"John"}`,
+		},
+		{
+			name: "invalid inline document",
+			resourceConfig: map[string]interface{}{
+				"document_content": `{"age": 25}`,
+				"schema_content":   schemaContent,
+			},
+			providerConfig: &ProviderConfig{
+				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+			},
+			expectError:   true,
+			errorContains: "validation failed",
+		},
+		{
+			name: "invalid inline schema",
+			resourceConfig: map[string]interface{}{
+				"document_content": `{"name": "John"}`,
+				"schema_content":   `{"type": "invalid"}`,
+			},
+			providerConfig: &ProviderConfig{
+				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+			},
+			expectError:   true,
+			errorContains: "failed to compile schema",
+		},
+		{
+			name: "mutually exclusive document error",
+			resourceConfig: map[string]interface{}{
+				"document":         "/path/to/doc.json",
+				"document_content": `{"name": "John"}`,
+				"schema_content":   schemaContent,
+			},
+			providerConfig: &ProviderConfig{
+				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+			},
+			expectError:   true,
+			errorContains: "provide exactly one of 'document' (path) or 'document_content' (inline content)",
+		},
+		{
+			name: "mutually exclusive schema error",
+			resourceConfig: map[string]interface{}{
+				"document_content": `{"name": "John"}`,
+				"schema":           "/path/to/schema.json",
+				"schema_content":   schemaContent,
+			},
+			providerConfig: &ProviderConfig{
+				DefaultErrorTemplate: "JSON Schema validation failed: {error}",
+			},
+			expectError:   true,
+			errorContains: "provide exactly one of 'schema' (path) or 'schema_content' (inline content)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resourceData := schema.TestResourceDataRaw(t, dataSourceJsonschemaValidator().Schema, tt.resourceConfig)
+			err := dataSourceJsonschemaValidatorRead(resourceData, tt.providerConfig)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+					return
+				}
+				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("expected error to contain %q, got %q", tt.errorContains, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			validJson := resourceData.Get("valid_json").(string)
+			if tt.expectedValidJson != "" && validJson != tt.expectedValidJson {
+				t.Errorf("expected valid_json %q, got %q", tt.expectedValidJson, validJson)
+			}
+
+			if resourceData.Id() == "" {
+				t.Errorf("expected resource ID to be set")
+			}
+		})
+	}
+}
+
 func TestDataSourceJsonschemaValidatorRead_InvalidProviderConfig(t *testing.T) {
 	// Create temporary directory and files
 	tempDir, err := os.MkdirTemp("", "jsonschema_test")
